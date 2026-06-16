@@ -1,5 +1,8 @@
 /* 28-Day Indoor Walking — offline service worker */
-const CACHE = "walk28-v1";
+const CACHE = "walk28-v2";
+const MOVES = ["march","steptouch","heeldig","kneelift","grapevine","lunge","squat",
+  "wallpushup","glutebridge","calfraise","birddog","deadbug","plank","wallsit",
+  "legraise","oblique","superman","punches","stretch","rest"];
 const ASSETS = [
   "./",
   "./index.html",
@@ -7,7 +10,8 @@ const ASSETS = [
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png",
-  "./icons/favicon.png"
+  "./icons/favicon.png",
+  ...MOVES.map((m) => `./gifs/${m}.gif`)
 ];
 
 // Pre-cache the app shell on install.

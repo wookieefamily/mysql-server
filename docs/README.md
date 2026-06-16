@@ -45,6 +45,8 @@ Your progress (checked days, streak, % complete) saves automatically in the brow
 ## What's inside
 - **4 weeks**, progressive: Foundation → Build → Push → Peak.
 - Each day shows an **illustrated icon (SVG)** for every exercise plus reps/time/holds.
+- **Tap any exercise** to open an **animated GIF demo** plus a one-line form cue.
+  GIFs are generated in the app's own style (clean, license-free, work offline).
 - Active-recovery and rest days built in so nothing gets overtrained.
 - Dashboard: progress ring, percent complete, current streak, days left.
 

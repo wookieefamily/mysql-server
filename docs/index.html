@@ -78,12 +78,30 @@
   .rest{color:var(--gold)}
 
   .moves{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 14px}
-  .move{display:flex;flex-direction:column;align-items:center;width:62px;text-align:center}
-  .chip{width:54px;height:54px;border-radius:14px;background:linear-gradient(160deg,#262a57,#1a1d3e);
-        border:1px solid var(--line);display:grid;place-items:center}
+  .move{display:flex;flex-direction:column;align-items:center;width:62px;text-align:center;cursor:pointer}
+  .chip{position:relative;width:54px;height:54px;border-radius:14px;background:linear-gradient(160deg,#262a57,#1a1d3e);
+        border:1px solid var(--line);display:grid;place-items:center;transition:transform .12s,border-color .2s}
+  .move:hover .chip{transform:translateY(-2px);border-color:var(--accent)}
   .chip svg{width:38px;height:38px}
+  .chip .play{position:absolute;right:3px;bottom:3px;width:16px;height:16px;border-radius:50%;
+              background:var(--accent);color:#fff;font-size:8px;display:grid;place-items:center;padding-left:1px;
+              box-shadow:0 2px 6px rgba(0,0,0,.4)}
   .move .rep{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.2}
   .move .nm{font-size:10px;color:#c7caf2;font-weight:600;line-height:1.15}
+
+  /* ---------- Exercise demo modal ---------- */
+  .modal{position:fixed;inset:0;background:rgba(8,9,20,.74);backdrop-filter:blur(5px);
+         display:none;place-items:center;z-index:100;padding:20px}
+  .modal.open{display:grid}
+  .sheet{background:linear-gradient(160deg,#23264f,#191c3c);border:1px solid var(--line);
+         border-radius:24px;max-width:340px;width:100%;padding:18px 18px 16px;text-align:center;box-shadow:var(--shadow)}
+  .sheet .demo{width:210px;height:210px;border-radius:18px;background:#23264f;border:1px solid var(--line);
+               margin:0 auto;display:block;object-fit:contain}
+  .sheet h3{margin:14px 0 6px;font-size:21px;letter-spacing:-.2px}
+  .sheet p{margin:0 4px;color:var(--muted);font-size:14px;line-height:1.5}
+  .sheet .x{margin-top:16px;width:100%;background:#2a2d57;color:#cdd0ff;border:none;border-radius:13px;
+            padding:12px;font-weight:800;font-size:15px;cursor:pointer}
+  .sheet .x:hover{background:#33376a}
 
   .btn{width:100%;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;
        display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s;
@@ -169,6 +187,30 @@ const NAME={march:"March",steptouch:"Step-touch",heeldig:"Heel digs",kneelift:"K
   birddog:"Bird-dog",deadbug:"Dead bug",plank:"Plank",wallsit:"Wall sit",legraise:"Leg lifts",oblique:"Oblique crunch",
   superman:"Superman",punches:"Punches",stretch:"Stretch",rest:"Mobility"};
 
+/* Short form cue shown with the animation when you tap a move. */
+const CUE={
+  march:"Walk in place, lifting knees and swinging arms. Land soft, heel-to-toe — no bouncing.",
+  steptouch:"Step one foot out, tap the other beside it, then reverse. Stay light and smooth.",
+  heeldig:"Alternate tapping each heel out in front while pulling your arms back like a row.",
+  kneelift:"Drive each knee up toward waist height, opposite hand reaching across your body.",
+  grapevine:"Step side · cross behind · step side. Travel sideways keeping a soft, even rhythm.",
+  lunge:"Step one foot back and lower until both knees bend ~90°. Push through the front heel to stand.",
+  squat:"Feet hip-width. Sit hips back and down like a chair, knees over toes, then stand tall.",
+  wallpushup:"Hands on the wall shoulder-width. Bend elbows to bring chest toward wall, press back out.",
+  glutebridge:"Lie on your back, knees bent. Squeeze glutes and lift hips into a straight line, then lower.",
+  calfraise:"Rise onto the balls of your feet, pause at the top, lower slowly with control.",
+  birddog:"On all fours, extend opposite arm and leg level with your back. Pause, then switch sides.",
+  deadbug:"On your back, arms and knees up. Lower opposite arm and leg, keep low back flat, return.",
+  plank:"Forearms down, body in one straight line from head to heels. Brace your core and hold.",
+  wallsit:"Back flat against the wall, slide down to thighs-parallel and hold like sitting in a chair.",
+  legraise:"Stand tall and lift one leg out to the side with control. Lower without swinging.",
+  oblique:"Bring one knee up and the same-side elbow down to meet it, crunching through the waist.",
+  superman:"Lie face down. Lift chest, arms and legs off the floor, squeeze, then lower slowly.",
+  punches:"Alternate punching forward at chest height. Keep knees soft and core braced.",
+  stretch:"Reach tall overhead, then ease into gentle side and hamstring stretches. Breathe slow.",
+  rest:"Easy mobility and deep breathing. Loosen up — recovery is part of the plan."
+};
+
 /* ===================== 28-DAY PLAN DATA ===================== */
 /* m = [iconKey, repLabel] */
 const PLAN=[
@@ -223,8 +265,8 @@ function save(){localStorage.setItem(KEY,JSON.stringify(state))}
 
 /* ===================== RENDER ===================== */
 function moveHTML(key,rep){
-  return `<div class="move" title="${NAME[key]||key}">
-            <div class="chip">${ICON[key]||""}</div>
+  return `<div class="move" data-key="${key}" title="Tap to see how: ${NAME[key]||key}">
+            <div class="chip">${ICON[key]||""}<span class="play">▶</span></div>
             <div class="nm">${NAME[key]||key}</div>
             <div class="rep">${rep}</div>
           </div>`;
@@ -255,6 +297,7 @@ function render(){
     </section>`;
   }).join("");
   host.querySelectorAll(".btn").forEach(b=>b.addEventListener("click",()=>toggle(+b.dataset.day)));
+  host.querySelectorAll(".move").forEach(m=>m.addEventListener("click",()=>openMove(m.dataset.key)));
   updateDash();
 }
 function toggle(d){
@@ -299,9 +342,32 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
 /* ===================== LEGEND ===================== */
 document.getElementById("legend").innerHTML =
   "Each session = warm-up → main moves → cool-down stretch. Icons show the move; "+
-  "the number under each is reps, time, or hold. No jumping anywhere — keep one foot grounded.";
+  "the number under each is reps, time, or hold. <b>Tap any exercise to watch a quick demo</b> with form tips. "+
+  "No jumping anywhere — keep one foot grounded.";
 
 render();
+
+/* ===================== Exercise demo modal ===================== */
+const modal=document.createElement("div");
+modal.className="modal";
+modal.innerHTML=
+  '<div class="sheet">'+
+    '<img class="demo" id="mGif" alt="" decoding="async">'+
+    '<h3 id="mName"></h3><p id="mCue"></p>'+
+    '<button class="x" id="mClose">Got it 👍</button>'+
+  '</div>';
+document.body.appendChild(modal);
+function openMove(key){
+  document.getElementById("mGif").src="gifs/"+key+".gif";   // lazy-loaded on tap
+  document.getElementById("mGif").alt=NAME[key]||key;
+  document.getElementById("mName").textContent=NAME[key]||key;
+  document.getElementById("mCue").textContent=CUE[key]||"";
+  modal.classList.add("open");
+}
+function closeMove(){ modal.classList.remove("open"); document.getElementById("mGif").src=""; }
+modal.addEventListener("click",e=>{ if(e.target===modal) closeMove(); });
+document.getElementById("mClose").addEventListener("click",closeMove);
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeMove(); });
 
 /* ===================== PWA: install + offline ===================== */
 // Register the service worker (relative path → works under /mysql-server/ project path).
