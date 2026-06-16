@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#6d4aff">
+<title>28-Day Indoor Walking Plan</title>
+<style>
+  :root{
+    --bg:#0f1020; --bg2:#171933; --card:#1d2042; --card2:#23264f;
+    --ink:#eef0ff; --muted:#9aa0d0; --line:#2c2f5c;
+    --accent:#7c5cff; --accent2:#42d6c3; --gold:#ffcf5c; --done:#42d6c3;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#272a5a 0%,var(--bg) 55%) fixed;
+    color:var(--ink); line-height:1.45; min-height:100vh;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 40px) env(safe-area-inset-left);
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:22px 16px}
+
+  /* ---------- Header ---------- */
+  header{text-align:center;margin:8px 0 18px}
+  h1{font-size:clamp(24px,5vw,38px);margin:0 0 4px;letter-spacing:-.5px;
+     background:linear-gradient(90deg,#fff,#bcb3ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--muted);font-size:15px;margin:0}
+
+  /* ---------- Dashboard ---------- */
+  .dash{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center;
+        background:linear-gradient(135deg,var(--card),var(--card2));
+        border:1px solid var(--line);border-radius:20px;padding:18px 20px;margin:18px 0 26px;box-shadow:var(--shadow)}
+  .ring{--p:0;width:104px;height:104px;border-radius:50%;display:grid;place-items:center;
+        background:conic-gradient(var(--accent2) calc(var(--p)*1%), #2a2d57 0);
+        transition:background .6s ease}
+  .ring .inner{width:84px;height:84px;border-radius:50%;background:var(--card);display:grid;place-items:center;text-align:center}
+  .ring .num{font-size:26px;font-weight:800;line-height:1}
+  .ring .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+  .stats{display:flex;gap:26px;flex-wrap:wrap}
+  .stat .v{font-size:24px;font-weight:800}
+  .stat .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+  .stat .v.flame{color:var(--gold)}
+  .bar{grid-column:1/-1;height:9px;border-radius:99px;background:#2a2d57;overflow:hidden}
+  .bar > i{display:block;height:100%;width:0;border-radius:99px;
+           background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .6s ease}
+  .reset{margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--muted);
+         font-size:12px;padding:8px 12px;border-radius:99px;cursor:pointer}
+  .reset:hover{color:var(--ink);border-color:var(--accent)}
+
+  /* ---------- Week heading ---------- */
+  .week{display:flex;align-items:center;gap:12px;margin:30px 4px 14px}
+  .week h2{font-size:16px;margin:0;letter-spacing:.5px;text-transform:uppercase;color:#cdd0ff}
+  .week .tag{font-size:11px;color:var(--bg);background:var(--accent2);padding:3px 10px;border-radius:99px;font-weight:700}
+  .week .rule{flex:1;height:1px;background:var(--line)}
+
+  /* ---------- Day grid ---------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+  .day{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;
+       position:relative;overflow:hidden;box-shadow:var(--shadow);transition:transform .15s ease,border-color .2s}
+  .day:hover{transform:translateY(-3px);border-color:#3a3e78}
+  .day.done{border-color:var(--done)}
+  .day.done::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(66,214,195,.10),transparent 60%);pointer-events:none}
+  .day .top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .daynum{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase}
+  .focus{font-size:18px;font-weight:800;margin:2px 0 0;letter-spacing:-.2px}
+  .time{font-size:12px;color:var(--accent2);font-weight:700;white-space:nowrap}
+  .rest{color:var(--gold)}
+
+  .moves{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 14px}
+  .move{display:flex;flex-direction:column;align-items:center;width:62px;text-align:center}
+  .chip{width:54px;height:54px;border-radius:14px;background:linear-gradient(160deg,#262a57,#1a1d3e);
+        border:1px solid var(--line);display:grid;place-items:center}
+  .chip svg{width:38px;height:38px}
+  .move .rep{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.2}
+  .move .nm{font-size:10px;color:#c7caf2;font-weight:600;line-height:1.15}
+
+  .btn{width:100%;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;
+       display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s;
+       background:#2a2d57;color:#cdd0ff}
+  .btn:hover{background:#33376a}
+  .day.done .btn{background:var(--done);color:#07211d}
+  .btn .check{width:18px;height:18px;border-radius:50%;border:2px solid currentColor;display:inline-grid;place-items:center;font-size:11px}
+  .doneon{display:block;font-size:10px;color:var(--muted);text-align:center;margin-top:7px;min-height:12px}
+
+  footer{text-align:center;color:var(--muted);font-size:12px;margin-top:36px;line-height:1.7}
+  footer b{color:#c7caf2}
+  .legend{font-size:12px;color:var(--muted);background:var(--card);border:1px solid var(--line);
+          border-radius:14px;padding:12px 16px;margin:6px 0 0}
+
+  @media (max-width:480px){
+    .dash{grid-template-columns:1fr;text-align:center;justify-items:center}
+    .stats{justify-content:center}
+    .reset{margin:0}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>28-Day Indoor Walking</h1>
+    <p class="sub">Low-impact walking + calisthenics &middot; no jumping &middot; 10–15 min a day</p>
+  </header>
+
+  <section class="dash">
+    <div class="ring" id="ring"><div class="inner">
+      <div><div class="num" id="ringNum">0</div><div class="lbl">of 28</div></div>
+    </div></div>
+    <div class="stats">
+      <div class="stat"><div class="v" id="pct">0%</div><div class="k">Complete</div></div>
+      <div class="stat"><div class="v flame" id="streak">0🔥</div><div class="k">Day streak</div></div>
+      <div class="stat"><div class="v" id="left">28</div><div class="k">Days left</div></div>
+      <button class="reset" id="resetBtn">Reset progress</button>
+    </div>
+    <div class="bar"><i id="barFill"></i></div>
+  </section>
+
+  <div id="weeks"></div>
+
+  <p class="legend" id="legend"></p>
+
+  <footer>
+    Tap <b>Mark done</b> after each session — your progress saves automatically on this device.<br>
+    Built for you &middot; scale down with chair support &amp; shorter holds, scale up with extra rounds.
+  </footer>
+</div>
+
+<script>
+/* ===================== EXERCISE ICON LIBRARY (inline SVG) ===================== */
+/* Simple, consistent line figures so every move is recognizable at a glance. */
+const A='#7c5cff', B='#42d6c3';
+function fig(parts){return `<svg viewBox="0 0 64 64" fill="none" stroke="${A}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">${parts}</svg>`}
+const head=(x,y,r=5)=>`<circle cx="${x}" cy="${y}" r="${r}" fill="${B}" stroke="none"/>`;
+
+const ICON={
+  march:   fig(head(32,12)+`<path d="M32 18v16"/><path d="M22 24l10 4 10-6" stroke="${B}"/><path d="M32 34l-7 16M32 34l8 8 0 8" stroke="${B}"/>`),
+  steptouch: fig(head(32,12)+`<path d="M32 18v14"/><path d="M20 24h24" stroke="${B}"/><path d="M32 32l-11 18M32 32l11 18" stroke="${B}"/>`),
+  heeldig: fig(head(28,12)+`<path d="M28 18v16"/><path d="M20 26l8 2 9-5" stroke="${B}"/><path d="M28 34l-3 16M28 34l12 12 6 2" stroke="${B}"/>`),
+  kneelift: fig(head(30,12)+`<path d="M30 18v14"/><path d="M21 24l9 3 10-4" stroke="${B}"/><path d="M30 32l-3 18M30 32l8 0 0 9 8 6" stroke="${B}"/>`),
+  grapevine: fig(head(32,12)+`<path d="M32 18v14"/><path d="M19 22l13 5 13-5" stroke="${B}"/><path d="M32 32l-12 16M32 32l12 16" stroke="${B}"/>`),
+  lunge:   fig(head(20,14)+`<path d="M20 20l4 12"/><path d="M14 26l10 4 10-2" stroke="${B}"/><path d="M24 32l-6 18M24 32l16 8 8 -2" stroke="${B}"/>`),
+  squat:   fig(head(32,12)+`<path d="M32 18l0 10"/><path d="M22 24h20" stroke="${B}"/><path d="M32 28l-9 8 0 10M32 28l9 8 0 10" stroke="${B}"/>`),
+  wallpushup: fig(`<path d="M50 8v48" stroke="${B}"/>`+head(22,18)+`<path d="M25 22l20 6"/><path d="M22 23l-2 18 -6 9" /><path d="M20 41l8 9" stroke="${B}"/>`),
+  glutebridge: fig(head(13,40)+`<path d="M18 40h10l8-12" /><path d="M36 28l8 14" stroke="${B}"/><path d="M44 42v8M28 40v10" stroke="${B}"/>`),
+  calfraise: fig(head(32,12)+`<path d="M32 18v18"/><path d="M24 24h16" stroke="${B}"/><path d="M32 36l-6 12 -4 2M32 36l6 12 4 2" stroke="${B}"/>`),
+  birddog: fig(head(14,30)+`<path d="M18 32h18" /><path d="M10 24l6 6" stroke="${B}"/><path d="M36 32l10 -8M22 34v8M34 34v8" stroke="${B}"/>`),
+  deadbug: fig(head(48,34)+`<path d="M18 34h26" /><path d="M30 34l-8 -10M40 34l8 -10" stroke="${B}"/><path d="M22 34l-6 8M36 34l-2 8" stroke="${B}"/>`),
+  plank:   fig(head(13,30)+`<path d="M16 32l30 8" /><path d="M16 32l-2 14M44 40l4 10" stroke="${B}"/><path d="M30 36l-1 10" stroke="${B}"/>`),
+  wallsit: fig(`<path d="M14 6v52" stroke="${B}"/>`+head(24,16)+`<path d="M16 22h16" /><path d="M24 22v12h14" /><path d="M38 34v14M24 34v14" stroke="${B}"/>`),
+  legraise: fig(head(13,42)+`<path d="M16 44h22" /><path d="M38 44l10 -14" stroke="${B}"/><path d="M28 44v8" stroke="${B}"/>`),
+  oblique: fig(head(30,12)+`<path d="M30 18l-4 14"/><path d="M26 22l8 3 8 6" stroke="${B}"/><path d="M26 32l-2 18M26 32l9 0 0 18" stroke="${B}"/>`),
+  superman: fig(head(13,28)+`<path d="M16 30l32 4" /><path d="M16 30l-4 -8M48 34l6 -8" stroke="${B}"/><path d="M30 32l4 10 12 4" stroke="${B}"/>`),
+  punches: fig(head(32,12)+`<path d="M32 18v16"/><path d="M32 22l12 -4M32 26l-10 6" stroke="${B}"/><path d="M32 34l-7 16M32 34l7 16" stroke="${B}"/>`),
+  stretch: fig(head(32,12)+`<path d="M32 18v12"/><path d="M32 21l-9 -7M32 21l9 -7" stroke="${B}"/><path d="M32 30l-7 20M32 30l7 20" stroke="${B}"/>`),
+  rest:    fig(head(40,18)+`<path d="M14 50h36" stroke="${B}"/><path d="M16 50l6 -14 18 0 4 14" /><path d="M20 30c4 -6 16 -6 20 0" stroke="${B}"/>`),
+};
+const NAME={march:"March",steptouch:"Step-touch",heeldig:"Heel digs",kneelift:"Knee lifts",grapevine:"Grapevine",
+  lunge:"Lunges",squat:"Squats",wallpushup:"Wall push-ups",glutebridge:"Glute bridge",calfraise:"Calf raise",
+  birddog:"Bird-dog",deadbug:"Dead bug",plank:"Plank",wallsit:"Wall sit",legraise:"Leg lifts",oblique:"Oblique crunch",
+  superman:"Superman",punches:"Punches",stretch:"Stretch",rest:"Mobility"};
+
+/* ===================== 28-DAY PLAN DATA ===================== */
+/* m = [iconKey, repLabel] */
+const PLAN=[
+ // ---- Week 1: Foundation (~10 min) ----
+ {d:1, focus:"Full Body", t:"~10 min", m:[["march","4 min"],["squat","10"],["wallpushup","8"],["calfraise","10"],["stretch","2 min"]]},
+ {d:2, focus:"Lower Body", t:"~10 min", m:[["heeldig","4 min"],["glutebridge","12"],["lunge","10"],["calfraise","12"],["stretch","2 min"]]},
+ {d:3, focus:"Core + Walk", t:"~10 min", m:[["kneelift","4 min"],["birddog","8/side"],["deadbug","8"],["plank","20s"],["stretch","2 min"]]},
+ {d:4, focus:"Active Recovery", t:"~8 min", rest:true, m:[["march","8 min"],["stretch","full body"]]},
+ {d:5, focus:"Upper + Walk", t:"~10 min", m:[["march","4 min"],["wallpushup","10"],["oblique","12/side"],["squat","10"],["stretch","2 min"]]},
+ {d:6, focus:"Endurance Walk", t:"~10 min", m:[["march","2 min"],["steptouch","2 min"],["grapevine","2 min"],["kneelift","3 min"],["stretch","1 min"]]},
+ {d:7, focus:"Rest Day", t:"~6 min", rest:true, m:[["rest","mobility"],["stretch","breathe"]]},
+
+ // ---- Week 2: Build (~12 min) ----
+ {d:8, focus:"Full Body", t:"~12 min", m:[["march","4 min"],["squat","12"],["wallpushup","10"],["glutebridge","14"],["calfraise","15"]]},
+ {d:9, focus:"Lower Body", t:"~12 min", m:[["march","4 min"],["lunge","12"],["wallsit","20s"],["legraise","12/side"],["stretch","2 min"]]},
+ {d:10, focus:"Core", t:"~12 min", m:[["march","4 min"],["plank","25s"],["birddog","10/side"],["deadbug","10"],["oblique","12/side"]]},
+ {d:11, focus:"Active Recovery", t:"~10 min", rest:true, m:[["steptouch","10 min"],["stretch","full body"]]},
+ {d:12, focus:"Upper + Core", t:"~12 min", m:[["march","4 min"],["wallpushup","12"],["superman","3×15s"],["punches","20"],["squat","12"]]},
+ {d:13, focus:"Endurance Walk", t:"~12 min", m:[["march","3 min"],["kneelift","3 min"],["steptouch","3 min"],["grapevine","2 min"],["stretch","1 min"]]},
+ {d:14, focus:"Rest Day", t:"~8 min", rest:true, m:[["rest","mobility"],["stretch","flow"]]},
+
+ // ---- Week 3: Push (~13 min) ----
+ {d:15, focus:"Full Body", t:"~13 min", m:[["march","5 min"],["squat","15"],["wallpushup","12"],["glutebridge","16"],["calfraise","20"]]},
+ {d:16, focus:"Lower Body", t:"~13 min", m:[["march","5 min"],["lunge","14"],["wallsit","30s"],["legraise","14/side"],["glutebridge","16"]]},
+ {d:17, focus:"Core", t:"~13 min", m:[["march","5 min"],["plank","30s"],["birddog","12/side"],["deadbug","12"],["superman","3×20s"]]},
+ {d:18, focus:"Active Recovery", t:"~11 min", rest:true, m:[["march","11 min"],["stretch","long hold"]]},
+ {d:19, focus:"Upper + Core", t:"~13 min", m:[["march","5 min"],["wallpushup","14"],["oblique","14/side"],["plank","20s"],["squat","14"]]},
+ {d:20, focus:"Power Intervals", t:"~12 min", m:[["march","1m brisk"],["steptouch","1m"],["march","×6 rounds"],["stretch","1 min"]]},
+ {d:21, focus:"Rest Day", t:"~9 min", rest:true, m:[["rest","mobility"],["stretch","flow"]]},
+
+ // ---- Week 4: Peak (~14-15 min) ----
+ {d:22, focus:"Full Body", t:"~15 min", m:[["march","5 min"],["squat","18"],["wallpushup","15"],["glutebridge","18"],["calfraise","25"]]},
+ {d:23, focus:"Lower Body", t:"~14 min", m:[["march","5 min"],["lunge","16"],["wallsit","40s"],["legraise","16/side"],["glutebridge","18"]]},
+ {d:24, focus:"Core", t:"~14 min", m:[["march","6 min"],["plank","40s"],["birddog","14/side"],["deadbug","14"],["superman","3×25s"]]},
+ {d:25, focus:"Active Recovery", t:"~12 min", rest:true, m:[["steptouch","12 min"],["stretch","full body"]]},
+ {d:26, focus:"Upper + Core", t:"~14 min", m:[["march","6 min"],["wallpushup","16"],["oblique","16/side"],["plank","30s"],["squat","16"]]},
+ {d:27, focus:"Endurance Finale", t:"~13 min", m:[["march","4 min"],["kneelift","3 min"],["grapevine","3 min"],["punches","3 min"]]},
+ {d:28, focus:"Graduation 🎉", t:"~15 min", m:[["march","1 min"],["squat","12"],["wallpushup","8"],["glutebridge","10"],["plank","20s"]]},
+];
+const WEEKS=[
+ {name:"Week 1 · Foundation", tag:"~10 min/day"},
+ {name:"Week 2 · Build",       tag:"~12 min/day"},
+ {name:"Week 3 · Push",        tag:"~13 min/day"},
+ {name:"Week 4 · Peak",        tag:"~14–15 min/day"},
+];
+
+/* ===================== STATE ===================== */
+const KEY="walk28-progress-v1";
+let state=load();
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return {}}}
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+
+/* ===================== RENDER ===================== */
+function moveHTML(key,rep){
+  return `<div class="move" title="${NAME[key]||key}">
+            <div class="chip">${ICON[key]||""}</div>
+            <div class="nm">${NAME[key]||key}</div>
+            <div class="rep">${rep}</div>
+          </div>`;
+}
+function dayHTML(day){
+  const done=!!state[day.d];
+  const moves=day.m.map(mv=>moveHTML(mv[0],mv[1])).join("");
+  const stamp=done&&state[day.d].when?("Done "+state[day.d].when):"";
+  return `<article class="day ${done?'done':''}" id="day${day.d}">
+    <div class="top">
+      <div><div class="daynum">Day ${day.d}</div><div class="focus">${day.focus}</div></div>
+      <div class="time ${day.rest?'rest':''}">${day.t}</div>
+    </div>
+    <div class="moves">${moves}</div>
+    <button class="btn" data-day="${day.d}">
+      <span class="check">${done?'✓':''}</span>${done?'Completed':'Mark done'}
+    </button>
+    <span class="doneon">${stamp}</span>
+  </article>`;
+}
+function render(){
+  const host=document.getElementById("weeks");
+  host.innerHTML=WEEKS.map((wk,i)=>{
+    const days=PLAN.slice(i*7,i*7+7).map(dayHTML).join("");
+    return `<section>
+      <div class="week"><h2>${wk.name}</h2><span class="tag">${wk.tag}</span><div class="rule"></div></div>
+      <div class="grid">${days}</div>
+    </section>`;
+  }).join("");
+  host.querySelectorAll(".btn").forEach(b=>b.addEventListener("click",()=>toggle(+b.dataset.day)));
+  updateDash();
+}
+function toggle(d){
+  if(state[d]){delete state[d];}
+  else{
+    const now=new Date();
+    state[d]={when:now.toLocaleDateString(undefined,{month:'short',day:'numeric'})};
+  }
+  save();
+  // re-render just that card
+  const fresh=document.createElement("div");
+  fresh.innerHTML=dayHTML(PLAN.find(p=>p.d===d));
+  const node=fresh.firstElementChild;
+  node.querySelector(".btn").addEventListener("click",()=>toggle(d));
+  document.getElementById("day"+d).replaceWith(node);
+  updateDash();
+}
+
+/* ===================== DASHBOARD ===================== */
+function currentStreak(){
+  // longest run of consecutive completed days ending at the highest completed day
+  let best=0,run=0;
+  for(let i=1;i<=28;i++){ if(state[i]){run++; best=Math.max(best,run);} else run=0; }
+  return best;
+}
+function updateDash(){
+  const done=Object.keys(state).filter(k=>+k>=1&&+k<=28).length;
+  const pct=Math.round(done/28*100);
+  document.getElementById("ringNum").textContent=done;
+  document.getElementById("pct").textContent=pct+"%";
+  document.getElementById("left").textContent=28-done;
+  document.getElementById("streak").textContent=currentStreak()+"🔥";
+  document.getElementById("ring").style.setProperty("--p",pct);
+  document.getElementById("barFill").style.width=pct+"%";
+}
+document.getElementById("resetBtn").addEventListener("click",()=>{
+  if(confirm("Reset all progress? This clears every checked day.")){
+    state={};save();render();
+  }
+});
+
+/* ===================== LEGEND ===================== */
+document.getElementById("legend").innerHTML =
+  "Each session = warm-up → main moves → cool-down stretch. Icons show the move; "+
+  "the number under each is reps, time, or hold. No jumping anywhere — keep one foot grounded.";
+
+render();
+</script>
+</body>
+</html>
