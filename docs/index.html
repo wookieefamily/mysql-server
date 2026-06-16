@@ -3,8 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#6d4aff">
+<meta name="theme-color" content="#7c5cff">
 <title>28-Day Indoor Walking Plan</title>
+
+<!-- PWA: installable, add-to-home-screen, offline -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Walk28">
 <style>
   :root{
     --bg:#0f1020; --bg2:#171933; --card:#1d2042; --card2:#23264f;
@@ -293,6 +302,36 @@ document.getElementById("legend").innerHTML =
   "the number under each is reps, time, or hold. No jumping anywhere — keep one foot grounded.";
 
 render();
+
+/* ===================== PWA: install + offline ===================== */
+// Register the service worker (relative path → works under /mysql-server/ project path).
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("service-worker.js").catch(()=>{});
+  });
+}
+
+// Show an "Install app" button when the browser offers installation (Android/Chrome/Edge).
+let deferredPrompt=null;
+const installBtn=document.createElement("button");
+installBtn.id="installBtn";
+installBtn.textContent="⬇ Install app";
+installBtn.style.cssText=
+  "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom));"+
+  "z-index:50;border:none;border-radius:99px;padding:13px 22px;font-size:15px;font-weight:800;cursor:pointer;"+
+  "color:#fff;background:linear-gradient(90deg,#7c5cff,#42d6c3);box-shadow:0 10px 26px rgba(0,0,0,.45);display:none";
+document.body.appendChild(installBtn);
+
+window.addEventListener("beforeinstallprompt",(e)=>{
+  e.preventDefault(); deferredPrompt=e; installBtn.style.display="block";
+});
+installBtn.addEventListener("click",async()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt=null; installBtn.style.display="none";
+});
+window.addEventListener("appinstalled",()=>{ installBtn.style.display="none"; });
 </script>
 </body>
 </html>

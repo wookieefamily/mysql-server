@@ -21,6 +21,16 @@ This `docs/` folder is the published site. To turn Pages on:
 > To keep the URL stable long-term, merge this branch into your default branch and switch the
 > Pages source branch to that — the site content is identical.
 
+## 📱 Install it like an app (PWA)
+The tracker is a Progressive Web App — add it to your home screen and it opens full-screen,
+with its own icon, and **works offline**.
+
+- **iPhone / iPad (Safari):** open the live link → tap **Share** → **Add to Home Screen** → **Add**.
+- **Android (Chrome):** open the live link → tap the **⬇ Install app** button (or menu **⋮ → Install app**).
+- **Desktop (Chrome/Edge):** click the install icon in the address bar, or the **⬇ Install app** button.
+
+After install it launches like a native app — no browser chrome — and your progress works without a connection.
+
 ## How to use
 1. Open the **live link above** (or open `index.html` locally by double-clicking it).
 2. Do the day's session (10–15 min): warm-up → main moves → cool-down stretch.
