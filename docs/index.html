@@ -352,20 +352,39 @@ const modal=document.createElement("div");
 modal.className="modal";
 modal.innerHTML=
   '<div class="sheet">'+
+    '<video class="demo" id="mVid" muted loop autoplay playsinline preload="auto" style="display:none"></video>'+
     '<img class="demo" id="mGif" alt="" decoding="async">'+
     '<h3 id="mName"></h3><p id="mCue"></p>'+
     '<button class="x" id="mClose">Got it 👍</button>'+
   '</div>';
 document.body.appendChild(modal);
-const ASSET_VER="5";   // bump on each GIF update → busts the CDN/browser cache
+const ASSET_VER="5";   // bump when you replace a demo file → busts the CDN/browser cache
+// Moves that have an MP4 demo (gifs/<key>.mp4). Others use the GIF. Add keys here
+// as you drop in videos; if an MP4 fails to load it falls back to the GIF automatically.
+const HAS_VIDEO=new Set([]);
 function openMove(key){
-  document.getElementById("mGif").src="gifs/"+key+".gif?v="+ASSET_VER;   // lazy-loaded on tap
-  document.getElementById("mGif").alt=NAME[key]||key;
+  const vid=document.getElementById("mVid"), img=document.getElementById("mGif");
   document.getElementById("mName").textContent=NAME[key]||key;
   document.getElementById("mCue").textContent=CUE[key]||"";
+  img.alt=NAME[key]||key;
+  if(HAS_VIDEO.has(key)){                       // prefer MP4 when available
+    img.style.display="none"; img.removeAttribute("src");
+    vid.style.display="";
+    vid.onerror=()=>{ vid.style.display="none"; vid.removeAttribute("src");
+                      img.style.display=""; img.src="gifs/"+key+".gif?v="+ASSET_VER; };
+    vid.src="gifs/"+key+".mp4?v="+ASSET_VER;
+    vid.play().catch(()=>{});
+  }else{                                        // GIF fallback
+    vid.style.display="none"; vid.removeAttribute("src");
+    img.style.display=""; img.src="gifs/"+key+".gif?v="+ASSET_VER;
+  }
   modal.classList.add("open");
 }
-function closeMove(){ modal.classList.remove("open"); document.getElementById("mGif").src=""; }
+function closeMove(){
+  modal.classList.remove("open");
+  const vid=document.getElementById("mVid"); vid.pause(); vid.removeAttribute("src");
+  document.getElementById("mGif").removeAttribute("src");
+}
 modal.addEventListener("click",e=>{ if(e.target===modal) closeMove(); });
 document.getElementById("mClose").addEventListener("click",closeMove);
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeMove(); });
