@@ -1,5 +1,5 @@
 /* 28-Day Indoor Walking — offline service worker */
-const CACHE = "walk28-v3";
+const CACHE = "walk28-v4";
 const MOVES = ["march","steptouch","heeldig","kneelift","grapevine","lunge","squat",
   "wallpushup","glutebridge","calfraise","birddog","deadbug","plank","wallsit",
   "legraise","oblique","superman","punches","stretch","rest"];
