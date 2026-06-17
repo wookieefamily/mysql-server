@@ -357,8 +357,9 @@ modal.innerHTML=
     '<button class="x" id="mClose">Got it 👍</button>'+
   '</div>';
 document.body.appendChild(modal);
+const ASSET_VER="5";   // bump on each GIF update → busts the CDN/browser cache
 function openMove(key){
-  document.getElementById("mGif").src="gifs/"+key+".gif";   // lazy-loaded on tap
+  document.getElementById("mGif").src="gifs/"+key+".gif?v="+ASSET_VER;   // lazy-loaded on tap
   document.getElementById("mGif").alt=NAME[key]||key;
   document.getElementById("mName").textContent=NAME[key]||key;
   document.getElementById("mCue").textContent=CUE[key]||"";
@@ -369,12 +370,54 @@ modal.addEventListener("click",e=>{ if(e.target===modal) closeMove(); });
 document.getElementById("mClose").addEventListener("click",closeMove);
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeMove(); });
 
-/* ===================== PWA: install + offline ===================== */
-// Register the service worker (relative path → works under /mysql-server/ project path).
+/* ===================== PWA: install + offline + auto-update ===================== */
+// Register the service worker (relative path → works under /mysql-server/ project path)
+// and prompt to refresh whenever a new version has been deployed.
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("service-worker.js").catch(()=>{});
+  let pendingReload=false, refreshing=false;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{
+    if(!pendingReload || refreshing) return;   // ignore first-install claim; only reload on user Update
+    refreshing=true; location.reload();
   });
+  window.addEventListener("load",()=>{
+    navigator.serviceWorker.register("service-worker.js").then((reg)=>{
+      // Check for a new deploy now, and each time the app regains focus.
+      reg.update();
+      document.addEventListener("visibilitychange",()=>{
+        if(document.visibilityState==="visible") reg.update();
+      });
+      const promptUpdate=()=>showUpdate(()=>{
+        pendingReload=true;
+        if(reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
+      });
+      // A new worker is already waiting from a previous visit.
+      if(reg.waiting && navigator.serviceWorker.controller) promptUpdate();
+      // A new worker is downloading right now → prompt once it's installed.
+      reg.addEventListener("updatefound",()=>{
+        const w=reg.installing; if(!w) return;
+        w.addEventListener("statechange",()=>{
+          if(w.state==="installed" && navigator.serviceWorker.controller) promptUpdate();
+        });
+      });
+    }).catch(()=>{});
+  });
+}
+
+// Small banner: "New version available — Update".
+function showUpdate(onUpdate){
+  if(document.getElementById("updateBar")) return;
+  const bar=document.createElement("div");
+  bar.id="updateBar";
+  bar.innerHTML='<span>🎉 New version available</span><button id="updateBtn">Update</button>';
+  bar.style.cssText="position:fixed;left:50%;transform:translateX(-50%);"+
+    "top:calc(12px + env(safe-area-inset-top));z-index:60;display:flex;align-items:center;gap:12px;"+
+    "background:linear-gradient(90deg,#7c5cff,#42d6c3);color:#fff;padding:9px 11px 9px 16px;"+
+    "border-radius:99px;box-shadow:0 10px 26px rgba(0,0,0,.45);font-weight:700;font-size:14px;max-width:92vw";
+  document.body.appendChild(bar);
+  const btn=bar.querySelector("#updateBtn");
+  btn.style.cssText="border:none;background:rgba(255,255,255,.25);color:#fff;font-weight:800;"+
+    "padding:7px 15px;border-radius:99px;cursor:pointer;white-space:nowrap";
+  btn.addEventListener("click",()=>{ bar.querySelector("span").textContent="Updating…"; onUpdate(); });
 }
 
 // Show an "Install app" button when the browser offers installation (Android/Chrome/Edge).
