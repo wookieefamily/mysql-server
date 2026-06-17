@@ -358,10 +358,10 @@ modal.innerHTML=
     '<button class="x" id="mClose">Got it 👍</button>'+
   '</div>';
 document.body.appendChild(modal);
-const ASSET_VER="5";   // bump when you replace a demo file → busts the CDN/browser cache
+const ASSET_VER="6";   // bump when you replace a demo file → busts the CDN/browser cache
 // Moves that have an MP4 demo (gifs/<key>.mp4). Others use the GIF. Add keys here
 // as you drop in videos; if an MP4 fails to load it falls back to the GIF automatically.
-const HAS_VIDEO=new Set([]);
+const HAS_VIDEO=new Set(["march"]);
 function openMove(key){
   const vid=document.getElementById("mVid"), img=document.getElementById("mGif");
   document.getElementById("mName").textContent=NAME[key]||key;
