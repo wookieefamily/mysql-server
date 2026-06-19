@@ -10,7 +10,7 @@ const API_KEY = import.meta.env.VITE_GOOGLE_CALENDAR_API_KEY || '';
 const CACHE_KEY = 'memoryboard-events';
 const REFRESH_MS = 5 * 60 * 1000; // refresh the schedule every 5 minutes
 
-const ACCENT = '#C8553D'; // coral
+const ACCENT = '#38BDF8'; // bright sky blue, high contrast on black
 const WHITE = '#FFFFFF';
 const GREY = '#B5B5B5'; // the "quiet day" message
 const PAST_GREY = '#777777'; // events already over, dimmed back
@@ -134,7 +134,9 @@ export default function MemoryBoard() {
     }
   }
 
-  const dateLine = `${dayNames[now.getDay()]} ${monthNames[now.getMonth()]} ${now.getDate()} ${now.getFullYear()}`;
+  const dayName = dayNames[now.getDay()];
+  const monthName = monthNames[now.getMonth()];
+  const headline = `TODAY is ${dayName.toUpperCase()}, ${monthName.toUpperCase()} ${now.getDate()}. IT IS ${format12(now)}`;
   const nothingToday = status === 'ready' && timed.length === 0 && allDay.length === 0;
 
   return (
@@ -143,20 +145,19 @@ export default function MemoryBoard() {
       style={{ backgroundColor: '#000000', color: WHITE }}
     >
       <div className="px-10 sm:px-12 lg:px-16 pt-8 pb-12 flex flex-col">
-        {/* Time and date pill */}
+        {/* Headline: today's day, date, and time, one bold white line */}
         <div className="text-center mb-7">
           <span
             className="inline-block rounded-full"
             style={{
               backgroundColor: PILL_BG,
               padding: '0.55rem 1.6rem',
+              fontWeight: 800,
+              color: WHITE,
               fontSize: 'clamp(1.4rem, 2.8vw, 2.25rem)',
             }}
           >
-            <span style={{ fontWeight: 800, color: WHITE }}>{format12(now)}</span>
-            <span style={{ fontWeight: 500, color: PILL_SUB, marginLeft: '0.7rem' }}>
-              {dateLine}
-            </span>
+            {headline}
           </span>
         </div>
 
@@ -228,7 +229,7 @@ export default function MemoryBoard() {
                   <div
                     className="flex items-center"
                     style={{
-                      gap: isPast ? '1rem' : '1.5rem',
+                      gap: isPast ? '1.25rem' : '2.75rem',
                       borderLeft: isHighlight
                         ? `10px solid ${ACCENT}`
                         : '10px solid transparent',
