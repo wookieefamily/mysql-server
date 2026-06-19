@@ -1,0 +1,8 @@
+# Netlify builds from the memory-board subfolder of the repo.
+[build]
+  base = "memory-board"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
