@@ -12,7 +12,8 @@ const REFRESH_MS = 5 * 60 * 1000; // refresh the schedule every 5 minutes
 
 const ACCENT = '#C8553D'; // coral
 const WHITE = '#FFFFFF';
-const GREY = '#B5B5B5';
+const GREY = '#B5B5B5'; // the "quiet day" message
+const PAST_GREY = '#777777'; // events already over, dimmed back
 const PILL_BG = '#1A1A1A';
 const PILL_SUB = '#9A9A9A';
 
@@ -193,7 +194,16 @@ export default function MemoryBoard() {
             timed.map((item) => {
               const isPast = item.endMs <= nowMs;
               const isHighlight = item.id === highlightId;
-              const color = isPast ? GREY : WHITE;
+              // Past events recede: dimmer, smaller, lighter weight, tighter
+              // rows, so the focus stays on now and what is coming.
+              const color = isPast ? PAST_GREY : WHITE;
+              const fontSize = isPast
+                ? 'clamp(1.4rem, 2.8vw, 2.2rem)'
+                : 'clamp(2.5rem, 5.5vw, 4.5rem)';
+              const fontWeight = isPast ? 600 : 800;
+              const timeMin = isPast
+                ? 'clamp(5rem, 10vw, 8rem)'
+                : 'clamp(8rem, 16vw, 14rem)';
               return (
                 <Fragment key={item.id}>
                   {isHighlight && (
@@ -216,21 +226,24 @@ export default function MemoryBoard() {
                     </div>
                   )}
                   <div
-                    className="flex items-center gap-6 py-3"
+                    className="flex items-center"
                     style={{
+                      gap: isPast ? '1rem' : '1.5rem',
                       borderLeft: isHighlight
                         ? `10px solid ${ACCENT}`
                         : '10px solid transparent',
                       paddingLeft: '1rem',
+                      paddingTop: isPast ? '0.15rem' : '0.6rem',
+                      paddingBottom: isPast ? '0.15rem' : '0.6rem',
                     }}
                   >
                     <div
                       style={{
-                        fontWeight: 800,
+                        fontWeight,
                         color,
                         flexShrink: 0,
-                        minWidth: 'clamp(8rem, 16vw, 14rem)',
-                        fontSize: 'clamp(2.5rem, 5.5vw, 4.5rem)',
+                        minWidth: timeMin,
+                        fontSize,
                         lineHeight: 1.1,
                       }}
                     >
@@ -238,9 +251,9 @@ export default function MemoryBoard() {
                     </div>
                     <div
                       style={{
-                        fontWeight: 800,
+                        fontWeight,
                         color,
-                        fontSize: 'clamp(2.5rem, 5.5vw, 4.5rem)',
+                        fontSize,
                         lineHeight: 1.15,
                       }}
                     >
