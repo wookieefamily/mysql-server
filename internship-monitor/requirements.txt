@@ -1,0 +1,10 @@
+# Runtime deps for the internship monitor.
+requests>=2.31
+PyYAML>=6.0
+
+# Optional: only needed for the Claude-API fit-assessment step. The monitor
+# falls back to a rule-based note if this is absent or ANTHROPIC_API_KEY is unset.
+anthropic>=0.40 ; extra == "llm"
+
+# Dev/test only:
+#   pytest>=7

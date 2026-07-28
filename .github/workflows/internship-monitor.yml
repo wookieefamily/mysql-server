@@ -1,0 +1,98 @@
+name: internship-monitor
+
+# Weekly monitor for Summer-2027 internships.
+#
+# Cadence (see internship-monitor/README.md):
+#   * Monday       ~08:00 PT : weekly full sweep of every company.
+#   * Thursday (Aug-Oct only) : extra sweep so `early_opener` programs that
+#     open and close inside one week are not missed. The monitor's cadence
+#     logic (registry.should_check) checks only early openers on Thursdays.
+#
+# NOTE: GitHub only runs `schedule:` triggers from a repository's DEFAULT
+# branch. To get the weekly cron, this workflow + the internship-monitor/
+# directory must live on the default branch of the repo you deploy from
+# (e.g. a personal job-search repo). `workflow_dispatch` runs from any branch.
+#
+# Secrets used (all optional except for delivery): ANTHROPIC_API_KEY,
+# SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, DIGEST_FROM, DIGEST_TO,
+# SLACK_WEBHOOK_URL. Configure them under Settings -> Secrets -> Actions.
+
+on:
+  schedule:
+    - cron: "0 15 * * 1"          # Mondays 15:00 UTC (~08:00 PT during PDT)
+    - cron: "0 15 * 8,9,10 4"     # Thursdays in Aug/Sep/Oct (early openers)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Check every company regardless of cadence"
+        type: boolean
+        default: false
+      verify:
+        description: "Run feed verification (rewrites companies.json)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: internship-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: internship-monitor
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # Claude fit-assessment is optional; install only if a key is present.
+          if [ -n "${ANTHROPIC_API_KEY}" ]; then pip install "anthropic>=0.40"; fi
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Verify feeds (optional)
+        if: ${{ inputs.verify }}
+        env:
+          PYTHONPATH: src
+        run: python scripts/verify_feeds.py --write
+
+      - name: Run monitor
+        env:
+          PYTHONPATH: src
+          SEND_DIGEST: "1"
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FIT_MODEL: ${{ vars.FIT_MODEL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          DIGEST_FROM: ${{ secrets.DIGEST_FROM }}
+          DIGEST_TO: ${{ secrets.DIGEST_TO }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          FORCE_FLAG=""
+          if [ "${{ inputs.force }}" = "true" ]; then FORCE_FLAG="--force"; fi
+          python -m internship_monitor.monitor --run $FORCE_FLAG
+
+      - name: Commit tracker, state, and digest
+        run: |
+          git config user.name  "internship-monitor[bot]"
+          git config user.email "internship-monitor@users.noreply.github.com"
+          git add data/tracker.csv data/seen_jobs.json digests/ config/companies.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "monitor: update tracker/state/digest ($(date -u +%F))"
+            git push
+          fi
