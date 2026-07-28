@@ -1,0 +1,113 @@
+# Matching config for the internship monitor.
+#
+# This file is meant to be edited freely. The brief expects 2-3 weeks of tuning
+# with false positives and misses at the start — adjust the lists below rather
+# than touching code. Matching is case-insensitive and word-boundary aware
+# ("data" will not match "metadata"; "ops" will not match "shops").
+
+# A posting must look like an internship (title or body hits one of these),
+# unless the company entry sets treat_all_as_intern: true.
+intern_terms:
+  - intern
+  - internship
+  - summer 2027
+  - summer analyst
+  - co-op
+  - coop
+  - undergraduate program
+  - student
+
+# A posting must hit at least one of these to be considered relevant.
+include_keywords:
+  - intern
+  - internship
+  - analyst
+  - data
+  - research
+  - policy
+  - strategy
+  - sustainability
+  - energy
+  - markets
+  - quantitative
+  - business
+  - operations
+  - finance
+  - economics
+  - climate
+
+# Location filter. A posting passes if its location hits location_terms OR
+# reads as remote. (Per-company location_filter: false disables this, e.g. for
+# small companies that list only "HQ".)
+location_terms:
+  - san francisco
+  - sf
+  - bay area
+  - oakland
+  - berkeley
+  - palo alto
+  - menlo park
+  - redwood city
+  - san mateo
+  - sunnyvale
+  - santa clara
+  - san jose
+  - cupertino
+  - fremont
+  - alameda
+  - san rafael
+  - los angeles
+  - la
+  - el segundo
+  - rosemead
+  - new york
+  - nyc
+  - ny
+  - brooklyn
+  - manhattan
+
+remote_terms:
+  - remote
+  - anywhere
+  - distributed
+  - work from home
+  - us-remote
+  - remote (us)
+
+# Engineering-only exclusions. A posting hitting one of these is dropped UNLESS
+# its TITLE also carries a non-eng signal (below) — so an "Analyst Intern" at an
+# engineering-heavy company still surfaces. Tune during the first runs.
+exclude_keywords:
+  - mechanical engineering
+  - electrical engineering
+  - civil engineering
+  - nuclear engineering
+  - software engineer
+  - software engineering
+  - firmware
+  - hardware engineer
+  - controls engineer
+  - process engineer
+  - manufacturing engineer
+  - phd required
+  - phd candidate
+  - ms/phd
+  - b.s. in engineering
+  - engineering degree required
+
+# If a posting hits an exclusion but its title contains one of these, keep it:
+# it is a qualifying non-engineering role at an engineering-heavy employer.
+non_eng_signals:
+  - analyst
+  - data
+  - policy
+  - business
+  - operations
+  - finance
+  - strategy
+  - research
+  - economics
+  - sustainability
+  - markets
+  - commercial
+  - program
