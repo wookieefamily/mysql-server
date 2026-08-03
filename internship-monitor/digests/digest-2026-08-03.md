@@ -1,0 +1,86 @@
+# Internship monitor digest — 2026-08-03
+
+Checked **25** companies, scanned **56** live postings, found **1** new matching internship(s).
+
+## New matching postings
+### Kairos Power — Chemical and Materials Engineering Internship - Summer 2027
+- **Action:** tailor resume
+- **Location:** Alameda, CA, Albuquerque, NM or Oak Ridge, TN 
+- **Apply:** https://job-boards.greenhouse.io/kairospower/jobs/6122803004
+- **Fit (rule-based):** Chemical and Materials Engineering Internship - Summer 2027 — Alameda, CA, Albuquerque, NM or Oak Ridge, TN . Matched on: intern, internship, data, research.
+- **Next:** Run the tailored-resume pipeline on this posting: `/tailored-resume-pipeline <posting URL>` (ATS match analysis -> honest tailored resume).
+
+## Manual check needed (no usable live feed)
+These companies have no supported ATS feed; check their careers pages by hand:
+- **Amazon (sustainability / energy)** (Bay Area, tier B) — https://www.amazon.jobs/en/search?base_query=sustainability%20intern
+- **Analysis Group** (SF / LA / NY, tier A) — https://www.analysisgroup.com/careers/
+- **Apple (Environment team)** (Bay (Cupertino), tier B) — https://jobs.apple.com/en-us/search?team=internships
+- **Ava Community Energy** (Bay (Oakland), tier A) — https://avaenergy.org/about/careers/
+- **BloombergNEF** (NY / SF, tier A) — https://careers.bloomberg.com/
+- **CAISO** (Bay-adjacent (Folsom), tier B) — https://www.caiso.com/about/careers
+- **California Energy Commission** (Bay-adjacent (Sacramento), tier B) — https://www.energy.ca.gov/about/careers
+- **Central Coast Community Energy (3CE)** (Bay-adjacent (Monterey), tier B) — https://3ce.org/careers/
+- **Charles River Associates (CRA)** (SF / LA / NY, tier A) — https://www.crai.com/careers/
+- **Clean Power Alliance** (LA, tier B) — https://cleanpoweralliance.org/careers/
+- **CleanPowerSF / SFPUC** (SF, tier A) — https://careers.sf.gov/
+- **Congruent Ventures** (SF, tier B) — https://www.congruentvc.com/
+- **CPUC (California Public Utilities Commission)** (SF, tier A) — https://www.cpuc.ca.gov/about-cpuc/careers
+- **DNV** (Bay Area, tier B) — https://www.dnv.com/careers/
+- **E3 (Energy + Environmental Economics)** (SF, tier A) — https://www.ethree.com/careers/
+- **Energy Impact Partners** (NY / SF, tier B) — https://www.energyimpactpartners.com/careers/
+- **Energy Innovation** (SF, tier A) — https://energyinnovation.org/about/careers/
+- **Environmental Defense Fund** (SF / NY, tier B) — https://www.edf.org/jobs
+- **G2 Venture Partners** (Bay Area, tier B) — https://www.g2vp.com/
+- **Galvanize Climate Solutions** (SF, tier B) — https://www.galvanizeclimate.com/careers
+- **Google (energy / sustainability / Google.org)** (Bay Area, tier B) — https://www.google.com/about/careers/applications/jobs/results/?q=intern%20energy
+- **Guidehouse** (remote / multiple, tier B) — https://guidehouse.com/careers
+- **ICF** (remote / multiple, tier B) — https://careers.icf.com/us/en
+- **LADWP** (LA, tier B) — https://www.ladwp.com/careers
+- **Lawrence Berkeley National Laboratory** (Bay (Berkeley), tier A) — https://jobs.lbl.gov/
+- **Marathon Fusion** (SF, tier C) — https://www.marathonfusion.com/careers
+- **MCE** (Bay (San Rafael), tier A) — https://www.mcecleanenergy.org/careers/
+- **Meta (infrastructure / energy)** (Bay Area, tier B) — https://www.metacareers.com/jobs?q=energy%20intern
+- **Microsoft (energy)** (remote / Bay Area, tier B) — https://careers.microsoft.com/v2/global/en/students
+- **NERA Economic Consulting** (SF / NY, tier A) — https://www.nera.com/careers.html
+- **Next 10** (SF, tier B) — https://www.next10.org/about
+- **NRDC** (SF / LA / NY, tier B) — https://www.nrdc.org/careers
+- **NVIDIA (data-center energy)** (Bay (Santa Clara), tier B) — https://www.nvidia.com/en-us/about-nvidia/careers/university-recruiting/
+- **Peninsula Clean Energy** (Bay (Redwood City), tier A) — https://www.peninsulacleanenergy.com/careers/
+- **PG&E** (Bay (Oakland), tier B) — https://www.pgecareers.com/
+- **Powerhouse Ventures** (Bay (Oakland), tier B) — https://www.powerhouse.fund/
+- **Prelude Ventures** (SF, tier B) — https://www.preludeventures.com/
+- **Salesforce (sustainability)** (SF, tier B) — https://careers.salesforce.com/en/jobs/?search=intern%20sustainability
+- **Sierra Club** (Bay (Oakland), tier C) — https://www.sierraclub.org/careers
+- **Silicon Valley Clean Energy** (Bay (Sunnyvale), tier B) — https://www.svcleanenergy.org/careers/
+- **Sonoma Clean Power** (Bay (Santa Rosa), tier B) — https://sonomacleanpower.org/careers
+- **Southern California Edison** (LA (Rosemead), tier B) — https://www.edison.com/home/careers.html
+- **Tesla Energy** (Bay (Palo Alto / Fremont), tier B) — https://www.tesla.com/careers/search/?type=3
+- **The Brattle Group** (SF / NY, tier A) — https://www.brattle.com/careers/open-positions/
+- **Union of Concerned Scientists** (Bay (Oakland), tier B) — https://www.ucsusa.org/about/jobs
+- **Wood Mackenzie (Verisk)** (remote / NY, tier B) — https://www.woodmac.com/careers/
+
+## Feed errors this run
+_Feeds that failed to load — coverage is NOT complete for these this run:_
+- **Aurora Energy Research**: GET https://boards-api.greenhouse.io/v1/boards/auroraenergyresearch/jobs -> HTTP 404
+- **Gridmatic**: GET https://api.ashbyhq.com/posting-api/job-board/gridmatic -> HTTP 404
+- **Camus Energy**: GET https://api.lever.co/v0/postings/camus -> HTTP 404
+- **Verse**: GET https://api.ashbyhq.com/posting-api/job-board/verse -> HTTP 404
+- **Kevala**: GET https://api.lever.co/v0/postings/kevala -> HTTP 404
+- **WattTime**: GET https://api.lever.co/v0/postings/watttime -> HTTP 404
+- **Station A**: GET https://boards-api.greenhouse.io/v1/boards/stationa/jobs -> HTTP 404
+- **Crux**: GET https://api.ashbyhq.com/posting-api/job-board/crux -> HTTP 404
+- **Banyan Infrastructure**: GET https://api.lever.co/v0/postings/banyaninfrastructure -> HTTP 404
+- **David Energy**: GET https://boards-api.greenhouse.io/v1/boards/davidenergy/jobs -> HTTP 404
+- **Arcadia**: GET https://boards-api.greenhouse.io/v1/boards/arcadiapower/jobs -> HTTP 404
+- **Sylvera**: GET https://boards-api.greenhouse.io/v1/boards/sylvera/jobs -> HTTP 404
+- **Persefoni**: GET https://boards-api.greenhouse.io/v1/boards/persefoni/jobs -> HTTP 404
+- **Crusoe**: GET https://boards-api.greenhouse.io/v1/boards/crusoeenergy/jobs -> HTTP 404
+- **Oklo**: GET https://api.lever.co/v0/postings/oklo -> HTTP 404
+- **Fervo Energy**: GET https://boards-api.greenhouse.io/v1/boards/fervoenergy/jobs -> HTTP 404
+- **Antora Energy**: GET https://boards-api.greenhouse.io/v1/boards/antoraenergy/jobs -> HTTP 404
+- **Radiant**: GET https://boards-api.greenhouse.io/v1/boards/radiantnuclear/jobs -> HTTP 404
+- **TAE Technologies**: GET https://boards-api.greenhouse.io/v1/boards/taetechnologies/jobs -> HTTP 404
+- **RMI (Rocky Mountain Institute)**: GET https://boards-api.greenhouse.io/v1/boards/rmi/jobs -> HTTP 404
+
+---
+_Triage only. Peter reviews every suggestion before applying. Nothing here inflates his profile._
