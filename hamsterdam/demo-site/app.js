@@ -38,15 +38,19 @@ const coins = (n) => {
   return (v < 0 ? '−' : '') + Math.abs(v).toLocaleString('en-GB');
 };
 
+// Minted once per tap. Every appending action carries one, so a write that
+// loses a compare-and-swap race and gets re-applied cannot count twice.
+const opId = () =>
+  (crypto.randomUUID ? crypto.randomUUID()
+    : `op${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`);
+
 function say(msg) {
   flash = msg;
   flashUntil = Date.now() + 4000;
   render();
 }
 
-function currentDay() {
-  return E.dayDef(dayId);
-}
+const currentDay = () => E.dayDef(dayId);
 
 function mySide(state, day) {
   const pairing = E.pairingForDay(state, day);
@@ -58,15 +62,13 @@ function mySide(state, day) {
 
 function teamNames(state, day) {
   const pairing = E.pairingForDay(state, day);
-  return pairing
-    ? { A: pairing.A.name, B: pairing.B.name }
-    : { A: 'Team A', B: 'Team B' };
+  return pairing ? { A: pairing.A.name, B: pairing.B.name } : { A: 'Team A', B: 'Team B' };
 }
 
-function playerName(id) {
+const playerName = (id) => {
   const p = content.players.find((x) => x.id === id);
   return p ? p.name : id;
-}
+};
 
 async function act(fn) {
   if (busy) return;
@@ -83,20 +85,72 @@ async function act(fn) {
   }
 }
 
-// --- Card rendering --------------------------------------------------------
+// --- Card ------------------------------------------------------------------
 
-function tagsFor(card) {
-  const type = E.cardTypeOf(card);
-  const cls = { VERSUS: 'versus', SOLO: 'solo', AUTO_VETO: 'autoveto' }[card.type] || '';
-  const out = [`<span class="tag ${cls}">${esc(type.label)}</span>`];
-  if (card.type === 'AUTO_VETO' && card.attempts) {
-    out.push(`<span class="tag autoveto">${card.attempts} attempts</span>`);
-  }
+// Card type is a full-bleed coloured band, so you know what a card is before
+// reading a word of it.
+function typeBar(card) {
+  const chipClass = { VERSUS: 'solid', SOLO: 'green', AUTO_VETO: '' }[card.type] ?? '';
+  const out = [`<span class="chip ${chipClass}">${esc(E.cardTypeOf(card).label)}</span>`];
   for (const tagId of card.tags || []) {
     const tag = content.cardTags[tagId];
-    if (tag) out.push(`<span class="tag ${tagId === 'timeSink' ? 'timesink' : 'build'}">${esc(tag.label)}</span>`);
+    if (!tag) continue;
+    const cls = tagId === 'timeSink' ? 'ochre' : 'blue';
+    const extra = tagId === 'timeSink' && card.minutes ? ` · ${card.minutes} min` : '';
+    out.push(`<span class="chip ${cls}">${esc(tag.label)}${extra}</span>`);
   }
-  return out.join('');
+  return `<div class="typebar">${out.join('')}</div>`;
+}
+
+// What the card pays YOU, right now — not the number that was printed on it.
+function payoutRows(card, pay) {
+  const rows = [];
+  if (pay.halved) {
+    rows.push(`<div class="payout mod"><span class="win">Half is on you</span>
+      <span class="lead"></span><span class="lose">was ${coins(pay.base)}</span></div>`);
+  }
+  if (pay.isPosition) {
+    rows.push(`<div class="payout mod"><span class="win">Position ×${pay.mult}</span>
+      <span class="lead"></span><span class="lose">${coins(pay.win)} if you land it</span></div>`);
+  }
+  if (pay.versus) {
+    rows.push(`<div class="payout"><span class="win">Win ${coins(pay.face)}</span>
+      <span class="lead"></span><span class="lose">Lose ${coins(pay.lose)}</span></div>`);
+  } else if (card.type === 'AUTO_VETO') {
+    rows.push(`<div class="payout"><span class="win">Both teams may score</span>
+      <span class="lead"></span><span class="lose">No penalty</span></div>`);
+  } else {
+    rows.push(`<div class="payout"><span class="win">Both teams may score</span>
+      <span class="lead"></span><span class="lose">Fixed</span></div>`);
+  }
+  return rows.join('');
+}
+
+function evidenceBlock(card, team, cardId, disabled) {
+  const list = card.evidence || [];
+  if (!list.length) return '';
+  const ticked = E.evidenceFor(team, cardId);
+  return `<div class="evidence">Evidence
+    <div class="row">
+      ${list.map((item) => `
+        <button class="box" data-act="evidence" data-card="${esc(cardId)}"
+          data-item="${esc(item)}" data-on="${ticked[item] ? '0' : '1'}" ${disabled ? 'disabled' : ''}>
+          <i class="b${ticked[item] ? ' on' : ''}"></i> ${esc(item)}
+        </button>`).join('')}
+    </div>
+  </div>`;
+}
+
+function attemptsBlock(card, team, cardId) {
+  if (!card.attempts) return '';
+  const used = E.attemptsUsed(team, cardId);
+  const left = Math.max(0, card.attempts - used);
+  const marks = Array.from({ length: card.attempts }, (_, i) =>
+    `<i class="${i < used ? 'used' : ''}"></i>`).join('');
+  return `<div class="evidence">Attempts left
+    <div class="row"><span class="box"><span class="tally">${marks}</span>
+      <span style="margin-left:8px">${left} of ${card.attempts}</span></span></div>
+  </div>`;
 }
 
 function cardMarkup(state, day, dayState, side, absIndex, opts = {}) {
@@ -106,56 +160,134 @@ function cardMarkup(state, day, dayState, side, absIndex, opts = {}) {
   const now = Date.now();
   const frozen = E.isFrozen(team, now);
   const ended = E.isAfterWhistle(day, dayState, now);
-  const isPosition = team.position && team.position.i === absIndex;
+  const disabled = frozen || ended || opts.suspended;
+
+  const pay = E.cardPayout(day, dayState, side, entry.id);
+  const ordinals = E.cardOrdinals(day, state.flags);
+  const total = E.liveCardIds(day, state.flags).length;
+  const oppBanked = E.opponentBanked(day, dayState, side, entry.id);
+  const names = teamNames(state, day);
+  const other = side === 'A' ? 'B' : 'A';
+
   const shots = state.photos.filter(
     (p) => p.dayId === day.id && p.cardId === entry.id && p.side === side);
 
-  const positionTag = isPosition
-    ? `<span class="tag position">POSITION ×${team.position.triple ? content.rules.positionTriple : content.rules.positionDouble}</span>`
+  const timeNote = card.minutes && !ended
+    ? `<p class="note" style="margin-top:9px">About ${card.minutes} minutes of the ${
+        esc(E.formatDuration(E.whistleMinutes(day) - E.gameNow(dayState, now)))} you have left.</p>`
     : '';
 
-  const canDeclare = !team.position && !ended && !opts.suspended;
-  const disabled = frozen || ended || opts.suspended;
-
   return `
-  <article class="card${opts.suspended ? ' suspended' : ''}">
-    <div class="card-head">
-      <h2 class="card-title">${esc(card.title)}</h2>
-      <div class="card-value">${coins(card.value)}</div>
+  <article class="card">
+    <div class="slug">
+      <span>No. ${ordinals[entry.id] || '—'} of ${total}</span>
+      <span>${opts.suspended ? 'Suspended' : 'In hand'}</span>
     </div>
-    <div class="tags">${tagsFor(card)}${positionTag}</div>
-    <p class="card-body">${esc(card.body)}</p>
-    ${opts.suspended ? '<p class="note"><strong>Suspended.</strong> You are holding one card only until the curse lifts.</p>' : ''}
-    ${shots.length ? `<div class="shots">${shots.map((p) => `<img src="${esc(Net.photoUrl(p.id))}" alt="">`).join('')}</div>` : ''}
+    ${typeBar(card)}
+    <div class="pad">
+      <div class="cardhead">
+        <h2 class="cardtitle">${esc(card.title)}</h2>
+        <div class="price">${coins(pay.face)}</div>
+      </div>
+      <div class="pricerule"></div>
+      ${payoutRows(card, pay)}
+      <p class="body">${esc(card.body)}</p>
+      ${oppBanked ? `<div class="opp">${esc(names[other])} have already banked this one</div>` : ''}
+      ${timeNote}
+      ${opts.suspended ? '<p class="note"><strong>Suspended.</strong> You hold one card only until the curse lifts.</p>' : ''}
+      ${attemptsBlock(card, team, entry.id)}
+      ${evidenceBlock(card, team, entry.id, disabled)}
+      ${shots.length ? `<div class="shots">${shots.map((p) => `<img src="${esc(Net.photoUrl(p.id))}" alt="">`).join('')}</div>` : ''}
+    </div>
     <div class="card-foot">
       <button class="primary grow" data-act="complete" data-i="${absIndex}" ${disabled ? 'disabled' : ''}>Complete</button>
-      <button data-act="veto" data-i="${absIndex}" ${disabled ? 'disabled' : ''}>Veto</button>
+      ${card.attempts
+        ? `<button data-act="attempt" data-i="${absIndex}" ${disabled ? 'disabled' : ''}>Failed attempt</button>`
+        : `<button data-act="veto" data-i="${absIndex}" ${disabled ? 'disabled' : ''}>Veto −${content.rules.vetoFreezeMinutes}m</button>`}
       <label class="btn file small">Photo
         <input type="file" accept="image/*" capture="environment"
                data-act="photo" data-card="${esc(entry.id)}" ${ended ? 'disabled' : ''}>
       </label>
-      ${canDeclare ? `<button class="small green" data-act="position" data-i="${absIndex}">Position</button>` : ''}
+      ${!team.position && !ended && !opts.suspended
+        ? `<button class="small green" data-act="position" data-i="${absIndex}">Position</button>` : ''}
     </div>
   </article>`;
 }
 
-function curseMarkup(rec) {
+function curseMarkup(day, rec) {
   const curse = content.curses[rec.curseId];
+  const e = curse.effect;
+  const band = rec.converted
+    ? `Curse · late — flat ${coins(content.rules.lateCurseFlatPenalty)}`
+    : `Curse${e.minutes ? ` · ${e.minutes} min` : ''}`;
   return `
   <article class="card curse">
-    <div class="card-head">
-      <h2 class="card-title">${esc(curse.title)}</h2>
-      <div class="card-value">${coins(curse.value)}</div>
+    <div class="slug"><span>Drawn ${esc(E.formatHM(rec.gameAt))}</span><span>Curse</span></div>
+    <div class="typebar"><span class="chip red">${esc(band)}</span></div>
+    <div class="pad">
+      <div class="cardhead">
+        <h2 class="cardtitle">${esc(curse.title)}</h2>
+        <div class="price">${coins(curse.value)}</div>
+      </div>
+      <div class="pricerule"></div>
+      <p class="body">${esc(curse.body)}</p>
+      ${rec.converted ? `<p class="body">Drawn after ${esc(day.convertAt)}. It keeps its coins; the time penalty became a flat ${coins(content.rules.lateCurseFlatPenalty)}.</p>` : ''}
     </div>
-    <div class="tags">
-      <span class="tag curse-tag">CURSE</span>
-      ${rec.converted ? `<span class="tag curse-tag">LATE — ${coins(content.rules.lateCurseFlatPenalty)}</span>` : ''}
-    </div>
-    <p class="card-body">${esc(curse.body)}</p>
-    ${rec.converted
-      ? `<p class="note" style="color:#d9d0be">Drawn after ${esc(E.formatHM(E.parseHM(E.dayDef(dayId).convertAt)))}. It keeps its coins; the time penalty became a flat ${coins(content.rules.lateCurseFlatPenalty)}.</p>`
-      : ''}
   </article>`;
+}
+
+// --- The NOW band ----------------------------------------------------------
+//
+// One line, in priority order, answering "what do I do next". Never a countdown
+// that implies moving faster — nobody runs.
+
+function nowBand(state, day, dayState, side) {
+  const team = dayState.teams[side];
+  const now = Date.now();
+  const left = content.rules.positionTriple;
+  let tone = '';
+  let text;
+
+  if (E.isAfterWhistle(day, dayState, now)) {
+    tone = 'warn';
+    text = 'The whistle has gone. Play is over — dinner decides it.';
+  } else if (team.swept) {
+    tone = 'green';
+    text = `Deck cleared. Play has stopped for you and ${coins(content.rules.cleanSweepBonus)} is banked.`;
+  } else if (E.isFrozen(team, now)) {
+    tone = 'warn';
+    text = `Frozen — ${E.formatDuration(E.freezeRemainingGameMinutes(team, now))} to go. Sit down. No planning, no looking ahead.`;
+  } else if (team.halfPending) {
+    tone = 'warn';
+    text = 'Half is on you — your next completed card is worth half. Spend it on something small.';
+  } else if (!team.position && team.done.length < 2) {
+    const togo = 2 - team.done.length;
+    tone = 'green';
+    text = `Position still open — declare now for ×${left}. ${togo} more completion${togo === 1 ? '' : 's'} and it drops to ×${content.rules.positionDouble}.`;
+  } else if (day.zones && !E.zonesOpen(day, dayState, now)) {
+    tone = 'green';
+    text = `${day.zones[side]} until ${E.formatHM(E.zonesLiftAt(dayState))}.`;
+  } else if (!team.hand.length && team.drawn >= day.sequence.length) {
+    text = 'Deck spent. Nothing left to draw.';
+  } else {
+    const n = E.activeHand(team, now).length;
+    text = `${n} in hand. Complete or veto one to draw the next.`;
+  }
+
+  const progress = E.deckProgress(day, dayState, side, state.flags);
+  const totals = E.scoreTeam(day, dayState, side, state);
+  const bits = [
+    `<span><b>${progress.done}</b> of ${progress.total} done</span>`,
+    totals.pending ? `<span><b>${totals.pending}</b> pending at dinner</span>` : '',
+    team.vetoed.length ? `<span><b>${team.vetoed.length}</b> vetoed</span>` : '',
+    team.failed.length ? `<span><b>${team.failed.length}</b> beat you</span>` : '',
+    team.position
+      ? `<span>Position ×${team.position.triple ? content.rules.positionTriple : content.rules.positionDouble}</span>`
+      : '<span>Position open</span>',
+  ].filter(Boolean).join('');
+
+  return `<div class="now ${tone}"><span class="k">Now</span><span class="t">${esc(text)}</span></div>
+    <div class="nowsub">${bits}</div>`;
 }
 
 // --- Screens ---------------------------------------------------------------
@@ -163,7 +295,7 @@ function curseMarkup(rec) {
 function screenGate() {
   if (content.password != null && !unlocked) {
     return `
-    <div class="masthead"><h1>Hamsterdam</h1><div class="sub">${esc(content.build)}</div></div>
+    <div class="masthead"><div class="kicker"><span>${esc(content.build)}</span></div><h1>Hamsterdam</h1></div>
     <div class="block">
       <div class="label">Password</div>
       <input type="text" id="pw" autocomplete="off" autocapitalize="none" spellcheck="false">
@@ -172,24 +304,23 @@ function screenGate() {
   }
   return `
   <div class="masthead">
+    <div class="kicker"><span>${esc(content.build)}</span><span>Pick your player</span></div>
     <h1>Hamsterdam</h1>
-    <div class="sub">${esc(content.build)} — pick your player</div>
+    <div class="sub">Four phones, one game. Choose which one you are.</div>
   </div>
   <div class="block">
-    <div class="label">Which one are you</div>
     <div class="picker">
       ${content.players.map((p) => `
         <button class="pick" data-act="pickme" data-id="${esc(p.id)}" aria-pressed="${me === p.id}">
           <span>${esc(p.name)}</span><span class="tick">${me === p.id ? 'You' : 'Choose'}</span>
         </button>`).join('')}
     </div>
-    <p class="note" style="margin-top:14px">Stays on this phone. Change it any time from the ledger.</p>
+    <p class="note" style="margin-top:14px">Stays on this phone. Change it any time from the day sheet.</p>
   </div>`;
 }
 
 function daySwitcher(state) {
-  return `
-  <div class="btn-row" style="margin-bottom:14px">
+  return `<div class="btn-row" style="margin-bottom:14px">
     ${content.days.map((d) => {
       const started = state.days[d.id] && state.days[d.id].startedAt;
       const current = d.id === dayId;
@@ -198,73 +329,86 @@ function daySwitcher(state) {
   </div>`;
 }
 
+function masthead(state, day) {
+  const side = mySide(state, day);
+  const names = teamNames(state, day);
+  return `<div class="masthead">
+    <div class="kicker"><span>${esc(day.label)} · ${esc(day.date)}</span><span>Whistle ${esc(day.whistle)}</span></div>
+    <h1>Hamsterdam</h1>
+    <div class="sub">${esc(day.demoPlace || day.place)}${side ? ` · ${esc(names[side])}` : ''}</div>
+  </div>`;
+}
+
+// All three days at once, so it is obvious that everybody partners everybody
+// else exactly once.
+function pairingTable(state) {
+  return `<table class="ledger">
+    ${content.days.map((d) => {
+      const p = E.pairingForDay(state, d);
+      return `<tr>
+        <td class="sub">${esc(d.label)}</td>
+        <td>${p ? `${esc(p.A.name)}<br>v ${esc(p.B.name)}` : '<span class="pending-mark">waiting on the flip</span>'}</td>
+      </tr>`;
+    }).join('')}
+  </table>`;
+}
+
 function screenStart(state, day) {
   const pairing = E.pairingForDay(state, day);
-  const chosen = state.setup.day1PairingId;
-  const names = teamNames(state, day);
-  const needPairing = !pairing;
+  const flipped = !!state.setup.day1PairingId;
 
   return `
-  <div class="masthead">
-    <h1>${esc(day.label)}</h1>
-    <div class="sub">${esc(day.date)} — ${esc(day.demoPlace || day.place)}</div>
-  </div>
+  ${masthead(state, day)}
   ${daySwitcher(state)}
 
-  <div class="notice solid">
-    <span class="k">Hard rule</span>${esc(content.text.noRunning)}
-  </div>
+  <div class="now warn"><span class="k">Hard rule</span><span class="t">${esc(content.text.noRunning)}</span></div>
+  <div style="height:14px"></div>
 
   <div class="block">
     <div class="label">Teams</div>
-    ${day.pairing === 'fixed'
-      ? `<p class="note">${esc(content.fixedPairing.label)}. Fixed, not chosen.</p>
-         <table class="ledger"><tr><td>${esc(content.fixedPairing.A.name)}</td><td class="n">A</td></tr>
-         <tr><td>${esc(content.fixedPairing.B.name)}</td><td class="n">B</td></tr></table>`
-      : `<p class="note">Set Day One's pairing. Day Two automatically takes the other, so the same pairing cannot be used twice and none is left unused.</p>
-         <div class="picker" style="margin-top:10px">
-           ${content.choosablePairings.map((p) => `
-             <button class="pick" data-act="pairing" data-id="${esc(p.id)}" aria-pressed="${chosen === p.id}">
-               <span>${esc(p.A.name)}<br><span class="tiny">against ${esc(p.B.name)}</span></span>
-               <span class="tick">${chosen === p.id ? 'Day 1' : 'Pick'}</span>
-             </button>`).join('')}
-         </div>
-         ${chosen ? `<div class="rule-text" style="margin-top:12px">
-            ${content.days.filter((d) => d.pairing !== 'fixed').map((d) => {
-              const p = E.pairingForDay(state, d);
-              return `${esc(d.label)}: ${esc(p.A.name)} against ${esc(p.B.name)}.`;
-            }).join('<br>')}
-          </div>` : ''}`}
-  </div>
+    <p class="note">Day Three is fixed: ${esc(content.fixedPairing.label)}. That leaves exactly two pairings
+    for Days One and Two, so across the three days each of you partners each of the other three once.
+    Which pairing falls on Day One is a coin flip.</p>
 
-  ${pairing ? `
-  <div class="block">
-    <div class="label">Today</div>
-    <table class="ledger">
-      <tr><td>${esc(names.A)}</td><td class="n">${mySide(state, day) === 'A' ? 'You' : ''}</td></tr>
-      <tr><td>${esc(names.B)}</td><td class="n">${mySide(state, day) === 'B' ? 'You' : ''}</td></tr>
-      <tr><td class="sub">Whistle</td><td class="n">${esc(day.whistle)}</td></tr>
-      <tr><td class="sub">Deck</td><td class="n">${E.liveCardIds(day, state.flags).length} cards</td></tr>
-    </table>
-  </div>` : ''}
+    ${flipped ? '' : `
+      <div style="margin:14px 0">
+        <button class="big primary" data-act="flip">Flip for Day One</button>
+      </div>
+      <p class="note center">All four phones will see the same result. It cannot be re-flipped.</p>`}
+
+    <div style="margin-top:14px">${pairingTable(state)}</div>
+
+    ${flipped
+      ? '<p class="note" style="margin-top:10px">Flipped and locked.</p>'
+      : `<details style="margin-top:12px"><summary class="tiny">Already flipped a real coin? Set it by hand</summary>
+        <div class="picker" style="margin-top:10px">
+          ${content.choosablePairings.map((p) => `
+            <button class="pick" data-act="pairing" data-id="${esc(p.id)}">
+              <span>${esc(p.A.name)}<br><span class="tiny">against ${esc(p.B.name)}</span></span>
+              <span class="tick">Day 1</span>
+            </button>`).join('')}
+        </div></details>`}
+  </div>
 
   <div class="block">
     <div class="label">The clock</div>
-    <p class="note">Cards deal the moment you press start and the clock runs from that moment to the whistle at ${esc(day.whistle)}.
-    ${content.clock.speedFactor !== 1 ? `<strong>${esc(content.clock.note)}</strong> A full day plays through in about ${Math.round((E.parseHM(day.whistle) - E.parseHM(content.clock.fixedStart)) / content.clock.speedFactor)} minutes.` : ''}</p>
+    <p class="note">Cards deal the moment you press start and the clock runs from then to the whistle at ${esc(day.whistle)}.
+    ${content.clock.speedFactor !== 1
+      ? `<strong>${esc(content.clock.note)}</strong> A full day plays through in about ${Math.round((E.parseHM(day.whistle) - E.parseHM(content.clock.fixedStart)) / content.clock.speedFactor)} minutes.`
+      : ''}</p>
+    <p class="note" style="margin-top:8px">Deck: ${E.liveCardIds(day, state.flags).length} cards.</p>
   </div>
 
   <hr class="hard-rule">
-  <button class="big primary" data-act="start" ${needPairing || busy ? 'disabled' : ''}>Start ${esc(day.label)}</button>
-  ${needPairing ? '<p class="note center" style="margin-top:10px">Set the pairing first.</p>' : ''}`;
+  <button class="big primary" data-act="start" ${!pairing || busy ? 'disabled' : ''}>Start ${esc(day.label)}</button>
+  ${!pairing ? '<p class="note center" style="margin-top:10px">Flip for Day One first.</p>' : ''}`;
 }
 
 function scoreBoard(state, day, dayState) {
   const names = teamNames(state, day);
   const totals = E.scoreBoth(day, dayState, state);
   const side = mySide(state, day);
-  return `
-  <div class="scores">
+  return `<div class="scores">
     ${['A', 'divider', 'B'].map((s) => {
       if (s === 'divider') return '<div class="divider"></div>';
       const t = totals[s];
@@ -283,8 +427,7 @@ function clockBar(day, dayState) {
   const whistle = E.whistleMinutes(day);
   const elapsed = g == null ? 0 : g - dayState.startMinutes;
   const left = g == null ? 0 : whistle - g;
-  return `
-  <div class="clockbar">
+  return `<div class="clockbar">
     <div><div class="k">Now</div><div class="v">${esc(E.formatHM(g == null ? 0 : g))}</div></div>
     <div class="c"><div class="k">Elapsed</div><div class="v">${esc(E.formatDuration(elapsed))}</div></div>
     <div class="r"><div class="k">Whistle ${esc(day.whistle)}</div><div class="v">${left <= 0 ? 'Gone' : esc(E.formatDuration(left))}</div></div>
@@ -296,47 +439,23 @@ function screenPlay(state, day, dayState) {
   const now = Date.now();
   if (!side) {
     return `${daySwitcher(state)}<div class="notice"><span class="k">Not on a team</span>
-      You are not on a team for ${esc(day.label)}. Set the pairing on the start screen.</div>`;
+      You are not on a team for ${esc(day.label)}. Flip for the pairing on the start screen.</div>`;
   }
   const team = dayState.teams[side];
   const ended = E.isAfterWhistle(day, dayState, now);
-  const frozen = E.isFrozen(team, now);
-  const progress = E.deckProgress(day, dayState, side, state.flags);
-  const effects = E.displayEffects(team, now);
-  const zonesShut = day.zones && !E.zonesOpen(day, dayState, now);
-  const recentCurse = team.curses.length
-    ? team.curses[team.curses.length - 1] : null;
+  const recentCurse = team.curses.length ? team.curses[team.curses.length - 1] : null;
   const showCurse = recentCurse && (now - recentCurse.at) < E.realMsForGameMinutes(45);
 
   let body = '';
 
   if (ended) {
-    body += `<div class="notice solid"><span class="k">The whistle</span>${esc(content.text.whistleRule)}</div>
-      <button class="big primary" data-act="tab" data-id="dinner">Go to dinner</button>`;
-  } else if (team.swept) {
-    body += `<div class="notice solid"><span class="k">Clean sweep</span>
-      Deck cleared. Play has stopped for you, the score is banked and you take ${coins(content.rules.cleanSweepBonus)}.</div>`;
-  } else {
-    if (zonesShut) {
-      body += `<div class="notice green"><span class="k">Opening zone — lifts ${esc(E.formatHM(E.zonesLiftAt(dayState)))}</span>
-        ${esc(day.zones[side])}. ${esc(day.zones.lifts)}</div>`;
-    }
-    if (frozen) {
-      body += `<div class="notice red"><span class="k">Frozen</span>
-        ${E.formatDuration(E.freezeRemainingGameMinutes(team, now))} remaining. The next draw is blocked until it clears.</div>`;
-    }
-    if (E.oneCardActive(team, now)) {
-      body += `<div class="notice red"><span class="k">One card only</span>
-        ${E.formatDuration(E.gameMinutesForRealMs(team.oneCardUntil - now))} remaining.</div>`;
-    }
-    if (team.halfPending) {
-      body += `<div class="notice red"><span class="k">Half</span>Your next completed card is worth half.</div>`;
-    }
-    for (const eff of effects) {
+    body += `<button class="big primary" data-act="tab" data-id="dinner">Go to dinner</button>`;
+  } else if (!team.swept) {
+    for (const eff of E.displayEffects(team, now)) {
       body += `<div class="notice red"><span class="k">${esc(eff.title)}</span>
         ${E.formatDuration(eff.remaining)} remaining.</div>`;
     }
-    if (showCurse) body += curseMarkup(recentCurse);
+    if (showCurse) body += curseMarkup(day, recentCurse);
 
     const active = E.activeHand(team, now);
     const suspended = E.suspendedHand(team, now);
@@ -349,21 +468,17 @@ function screenPlay(state, day, dayState) {
   }
 
   return `
+  ${masthead(state, day)}
   ${daySwitcher(state)}
   ${scoreBoard(state, day, dayState)}
   ${clockBar(day, dayState)}
-  <div class="spread" style="margin-bottom:12px">
-    <span class="tiny">Deck ${progress.done} of ${progress.total}</span>
-    <span class="tiny">${team.position ? `Position declared ×${team.position.triple ? content.rules.positionTriple : content.rules.positionDouble}` : 'Position open'}</span>
-  </div>
+  ${nowBand(state, day, dayState, side)}
   ${body}`;
 }
 
 function screenCounters(state, day, dayState) {
   const side = mySide(state, day);
   const names = teamNames(state, day);
-  // These fire opportunistically. They must never require the day to be open,
-  // a particular screen, or a particular card.
   const teamsKnown = !!E.pairingForDay(state, day);
 
   const findMy = day.findMy && day.findMy.enabled ? `
@@ -374,16 +489,16 @@ function screenCounters(state, day, dayState) {
         : 'Free and unlimited today. Nothing to log.'}</p>
       ${day.findMy.cost > 0 ? `
         <div class="spread" style="margin:10px 0">
-          <span>${esc(names.A)}</span><span class="counter-count">${dayState.findMy.A || 0}</span>
+          <span>${esc(names.A)}</span><span class="counter-count">${E.findMyCount(dayState, 'A')}</span>
         </div>
         <div class="spread" style="margin-bottom:10px">
-          <span>${esc(names.B)}</span><span class="counter-count">${dayState.findMy.B || 0}</span>
+          <span>${esc(names.B)}</span><span class="counter-count">${E.findMyCount(dayState, 'B')}</span>
         </div>
         <button class="grow" data-act="findmy" ${!side ? 'disabled' : ''}>Log a look — ${coins(-day.findMy.cost)}</button>` : ''}
     </div>` : '';
 
   return `
-  <div class="masthead"><h1>Counters</h1><div class="sub">${esc(day.label)} — tap from anywhere</div></div>
+  ${masthead(state, day)}
   ${daySwitcher(state)}
   <div class="block">
     <div class="label">Standing mechanics</div>
@@ -409,19 +524,80 @@ function screenCounters(state, day, dayState) {
     </div>`;
   }).join('')}
   ${findMy}
-  ${!teamsKnown ? '<p class="note center" style="margin-top:14px">Set the pairing on the start screen so these know which team to credit.</p>' : ''}`;
+  ${!teamsKnown ? '<p class="note center" style="margin-top:14px">Flip for the pairing so these know which team to credit.</p>' : ''}`;
+}
+
+// The day sheet: what has actually happened, in the order it happened.
+function recordCard(day, state, entry, kind, ordinals, total, verdicts) {
+  if (kind === 'curse') {
+    const curse = content.curses[entry.curseId];
+    return `<article class="card curse">
+      <div class="slug"><span>Drawn ${esc(E.formatHM(entry.gameAt))}</span><span>Curse</span></div>
+      <div class="typebar"><span class="chip red">Curse${entry.converted ? ' · late' : ''}</span></div>
+      <div class="pad">
+        <h2 class="cardtitle">${esc(curse.title)}</h2>
+        <div class="recordfoot"><div class="price">${coins(curse.value)}</div></div>
+      </div>
+    </article>`;
+  }
+
+  const card = content.cards[entry.cardId];
+  const versus = E.isVersus(card);
+  const verdict = verdicts[entry.cardId];
+  let stamp = 'Completed';
+  let stampCls = '';
+  if (kind === 'vetoed') { stamp = 'Vetoed'; }
+  else if (kind === 'failed') { stamp = 'Beat you'; }
+  else if (versus && !verdict) { stamp = 'Pending'; stampCls = ' green'; }
+  else if (versus && verdict) { stamp = verdict === entry.side ? 'Won' : 'Lost'; stampCls = verdict === entry.side ? ' green' : ''; }
+
+  const who = entry.by ? ` · ${playerName(entry.by)}` : '';
+  const shots = state.photos.filter((p) => p.dayId === day.id && p.cardId === entry.cardId && p.side === entry.side);
+
+  return `<article class="card done${kind === 'vetoed' ? ' void' : ''}">
+    <div class="slug"><span>No. ${ordinals[entry.cardId] || '—'} of ${total} · ${esc(E.formatHM(entry.gameAt))}${esc(who)}</span></div>
+    ${typeBar(card)}
+    <div class="pad">
+      <h2 class="cardtitle">${esc(card.title)}</h2>
+      <div class="recordfoot">
+        <div class="price">${coins(kind === 'done' ? card.value : 0)}</div>
+        <div class="stamp${stampCls}">${esc(stamp)}</div>
+      </div>
+      ${shots.length ? `<div class="shots">${shots.map((p) => `<img src="${esc(Net.photoUrl(p.id))}" alt="">`).join('')}</div>` : ''}
+    </div>
+  </article>`;
 }
 
 function screenLedger(state, day, dayState) {
   const names = teamNames(state, day);
   const totals = E.scoreBoth(day, dayState, state);
+  const side = mySide(state, day) || 'A';
+  const team = dayState.teams[side];
+  const ordinals = E.cardOrdinals(day, state.flags);
+  const total = E.liveCardIds(day, state.flags).length;
+
+  const records = [
+    ...team.done.map((e) => ({ ...e, side, kind: 'done' })),
+    ...team.vetoed.map((e) => ({ ...e, side, kind: 'vetoed' })),
+    ...team.failed.map((e) => ({ ...e, side, kind: 'failed' })),
+    ...team.curses.map((e) => ({ ...e, side, kind: 'curse' })),
+  ].sort((a, b) => a.at - b.at);
+
   return `
-  <div class="masthead"><h1>Ledger</h1><div class="sub">${esc(day.label)} — ${esc(day.date)}</div></div>
+  ${masthead(state, day)}
   ${daySwitcher(state)}
   ${dayState.startedAt ? scoreBoard(state, day, dayState) : '<p class="note">Not started.</p>'}
+
+  <div class="block">
+    <div class="label">The day so far — ${esc(names[side])}</div>
+    ${records.length
+      ? records.map((r) => recordCard(day, state, r, r.kind, ordinals, total, dayState.dinner.verdicts)).join('')
+      : '<p class="note">Nothing yet.</p>'}
+  </div>
+
   ${E.SIDES.map((s) => `
     <div class="block">
-      <div class="label">${esc(names[s])}</div>
+      <div class="label">${esc(names[s])} — the count</div>
       <table class="ledger">
         ${totals[s].lines.length
           ? totals[s].lines.map((l) => `
@@ -435,6 +611,7 @@ function screenLedger(state, day, dayState) {
         <tr><td><strong>Banked</strong></td><td class="n"><strong>${coins(totals[s].banked)}</strong></td></tr>
       </table>
     </div>`).join('')}
+
   <div class="block">
     <div class="label">This phone</div>
     <p class="note">You are ${esc(playerName(me))}.</p>
@@ -451,18 +628,21 @@ function screenDinner(state, day, dayState) {
     ? null : (totals.A.banked > totals.B.banked ? 'A' : 'B');
 
   return `
-  <div class="masthead"><h1>Dinner</h1><div class="sub">${esc(day.label)} — declare the winner</div></div>
-  <div class="block"><p class="note">${esc(content.text.dinnerIntro)}</p></div>
+  <div class="masthead">
+    <div class="kicker"><span>${esc(day.label)} · ${esc(day.date)}</span><span>Dinner</span></div>
+    <h1>Dinner</h1>
+    <div class="sub">${esc(content.text.dinnerIntro)}</div>
+  </div>
 
   <div class="block">
     <div class="label">Versus — ${unjudged} to settle</div>
     ${pending.length ? pending.map((p) => `
       <div class="versus-row">
         <div class="heads">
-          <strong>${esc(p.card.title)}</strong>
-          <span class="card-value" style="font-size:22px">${coins(p.card.value)}</span>
+          <strong style="font-family:var(--serif);font-size:20px">${esc(p.card.title)}</strong>
+          <span class="price" style="font-size:26px">${coins(p.card.value)}</span>
         </div>
-        <div class="tags" style="margin-top:8px">${tagsFor(p.card)}</div>
+        ${typeBar(p.card)}
         <div class="claims">
           ${['A', 'divider', 'B'].map((s) => {
             if (s === 'divider') return '<div class="divider" style="background:var(--rule-hard)"></div>';
@@ -515,7 +695,7 @@ function screenDinner(state, day, dayState) {
       : dayState.dinner.declared
         ? `<div class="notice solid"><span class="k">Declared</span>
              ${winner ? `${esc(names[winner])} take ${esc(day.label)}.` : 'A dead heat.'}</div>`
-        : `<button class="big primary" data-act="declare">Declare the winner</button>`}
+        : '<button class="big primary" data-act="declare">Declare the winner</button>'}
   </div>
 
   <div class="block">
@@ -534,25 +714,21 @@ function screenDinner(state, day, dayState) {
 // --- Render ----------------------------------------------------------------
 
 function navMarkup() {
-  const tabs = [
-    ['play', 'Play'], ['count', 'Counters'], ['ledger', 'Ledger'], ['dinner', 'Dinner'],
-  ];
-  return tabs.map(([id, label]) =>
-    `<button data-act="tab" data-id="${id}" ${tab === id ? 'aria-current="true"' : ''}>${label}</button>`).join('');
+  return [['play', 'Play'], ['count', 'Counters'], ['ledger', 'Day sheet'], ['dinner', 'Dinner']]
+    .map(([id, label]) =>
+      `<button data-act="tab" data-id="${id}" ${tab === id ? 'aria-current="true"' : ''}>${label}</button>`)
+    .join('');
 }
 
 function syncMarkup() {
   const s = Net.status;
-  if (s.lastError && !s.connected) {
-    return `<div class="sync bad">Not connected — nothing is saving</div>`;
-  }
-  if (s.saving) return `<div class="sync">Saving…</div>`;
-  return `<div class="sync">In step with all phones</div>`;
+  if (s.lastError && !s.connected) return '<div class="sync bad">Not connected — nothing is saving</div>';
+  if (s.saving) return '<div class="sync">Saving…</div>';
+  return '<div class="sync">In step with all phones</div>';
 }
 
 function render() {
   bannerEl.textContent = content.banner;
-
   const state = Net.getState();
   const day = currentDay();
 
@@ -567,49 +743,41 @@ function render() {
 
   const dayState = state.days[day.id];
   const started = dayState && dayState.startedAt;
+  const safeDay = dayState || E.ensureDay(structuredClone(state), day);
 
   let html = '';
   if (flash && Date.now() < flashUntil) {
     html += `<div class="notice red"><span class="k">Note</span>${esc(flash)}</div>`;
   }
 
-  if (tab === 'play') {
-    html += started ? screenPlay(state, day, dayState) : screenStart(state, day);
-  } else if (tab === 'count') {
-    html += screenCounters(state, day, dayState || E.ensureDay(structuredClone(state), day));
-  } else if (tab === 'ledger') {
-    html += screenLedger(state, day, dayState || E.ensureDay(structuredClone(state), day));
-  } else {
-    html += screenDinner(state, day, dayState || E.ensureDay(structuredClone(state), day));
-  }
+  if (tab === 'play') html += started ? screenPlay(state, day, dayState) : screenStart(state, day);
+  else if (tab === 'count') html += screenCounters(state, day, safeDay);
+  else if (tab === 'ledger') html += screenLedger(state, day, safeDay);
+  else html += screenDinner(state, day, safeDay);
 
   html += syncMarkup();
   app.innerHTML = html;
   lastSignature = signature(state);
 }
 
-// What the buttons depend on. When this changes, the screen must be rebuilt;
-// otherwise the tick only refreshes clocks and totals, so typing is never
-// interrupted.
+// What the buttons depend on. When this changes the screen is rebuilt; between
+// changes the tick only refreshes clocks and totals, so typing is never lost.
 function signature(state) {
   const day = currentDay();
   const ds = state.days[day.id];
   const now = Date.now();
-  if (!ds) return `${dayId}|${tab}|nostart|${state.setup.day1PairingId}|${me}`;
+  if (!ds) return `${dayId}|${tab}|nostart|${state.setup.day1PairingId}|${me}|${!!flash}`;
   return [
     dayId, tab, ds.startedAt, !!flash,
-    E.isAfterWhistle(day, ds, now),
-    E.zonesOpen(day, ds, now),
-    JSON.stringify(ds.dinner.verdicts),
-    ds.dinner.superlatives.length,
-    ds.dinner.declared,
-    JSON.stringify(ds.findMy),
+    E.isAfterWhistle(day, ds, now), E.zonesOpen(day, ds, now),
+    JSON.stringify(ds.dinner.verdicts), ds.dinner.superlatives.length, ds.dinner.declared,
+    ds.findMyLog.length,
     JSON.stringify(Object.keys(ds.standing).map((k) => [k, ds.standing[k].length])),
-    state.photos.length,
-    JSON.stringify(state.flags),
+    state.photos.length, JSON.stringify(state.flags),
     ...E.SIDES.map((s) => {
       const t = ds.teams[s];
-      return [s, t.hand.join(','), t.done.length, t.vetoed.length, t.curses.length,
+      return [s, t.hand.join(','), t.done.length, t.vetoed.length, t.failed.length,
+        t.curses.length, t.attemptLog.length, JSON.stringify(t.evidence),
         E.isFrozen(t, now), E.oneCardActive(t, now), t.halfPending, t.swept,
         t.position ? t.position.i : 'x'].join(':');
     }),
@@ -618,12 +786,8 @@ function signature(state) {
 
 function tick() {
   const state = Net.getState();
-  const sig = signature(state);
-  if (sig !== lastSignature) {
-    render();
-    return;
-  }
-  // Cheap refresh: clocks and totals only.
+  if (signature(state) !== lastSignature) { render(); return; }
+
   const day = currentDay();
   const ds = state.days[day.id];
   if (!ds || !ds.startedAt) return;
@@ -636,7 +800,6 @@ function tick() {
     const el = document.querySelector(`[data-coin="${side}"]`);
     if (el) tickNumber(el, totals[side].banked);
   }
-
   maybeReleaseFreeze(state, day, ds);
 }
 
@@ -649,23 +812,21 @@ function tickNumber(el, target) {
   const start = performance.now();
   const step = (t) => {
     const k = Math.min(1, (t - start) / 420);
-    const v = Math.round(from + (target - from) * k);
-    el.textContent = coins(v);
+    el.textContent = coins(Math.round(from + (target - from) * k));
     if (k < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
 }
 
-// A veto or a curse blocks the draw. When it clears, somebody has to ask for
-// the card. Whichever phone gets there first wins the race; the rest no-op.
+// A veto or a curse blocks the draw. When it clears somebody has to ask for the
+// card; whichever phone gets there first wins, the rest no-op.
 function maybeReleaseFreeze(state, day, ds) {
   if (releasing || busy) return;
   const side = mySide(state, day);
   if (!side) return;
   const team = ds.teams[side];
   const now = Date.now();
-  if (team.swept || E.isAfterWhistle(day, ds, now)) return;
-  if (E.isFrozen(team, now)) return;
+  if (team.swept || E.isAfterWhistle(day, ds, now) || E.isFrozen(team, now)) return;
   const needs = team.freezeUntil != null
     || (team.hand.length < E.handTarget(team, now) && team.drawn < day.sequence.length);
   if (!needs) return;
@@ -684,11 +845,13 @@ document.addEventListener('change', async (ev) => {
   const side = mySide(state, day);
   const cardId = input.dataset.card;
   const file = input.files[0];
+  const id0 = opId();
   input.value = '';
   await act(async () => {
     const id = await Net.uploadPhoto(file);
     return Net.mutate((draft) => {
-      draft.photos.push({ id, dayId: day.id, cardId, side, by: me, at: Date.now() });
+      if (draft.photos.some((p) => p.op === id0)) return;
+      draft.photos.push({ op: id0, id, dayId: day.id, cardId, side, by: me, at: Date.now() });
     });
   });
 });
@@ -702,43 +865,28 @@ document.addEventListener('click', async (ev) => {
 
   if (action === 'unlock') {
     const value = (document.getElementById('pw') || {}).value || '';
-    if (value.trim().toLowerCase() === String(content.password).toLowerCase()) {
-      unlocked = true; render();
-    } else say('That is not it.');
+    if (value.trim().toLowerCase() === String(content.password).toLowerCase()) { unlocked = true; render(); }
+    else say('That is not it.');
     return;
   }
-  if (action === 'pickme') {
-    me = el.dataset.id;
-    localStorage.setItem(KEY_PLAYER, me);
-    render();
-    return;
-  }
-  if (action === 'forgetme') {
-    me = null; localStorage.removeItem(KEY_PLAYER); render(); return;
-  }
+  if (action === 'pickme') { me = el.dataset.id; localStorage.setItem(KEY_PLAYER, me); render(); return; }
+  if (action === 'forgetme') { me = null; localStorage.removeItem(KEY_PLAYER); render(); return; }
   if (action === 'tab') { tab = el.dataset.id; flash = null; render(); return; }
   if (action === 'day') {
-    dayId = Number(el.dataset.id);
-    localStorage.setItem(KEY_DAY, String(dayId));
-    render();
-    return;
+    dayId = Number(el.dataset.id); localStorage.setItem(KEY_DAY, String(dayId)); render(); return;
   }
   if (action === 'prompt') {
     const input = document.getElementById('superlative');
-    if (input) { input.value = el.dataset.text + ' — '; input.focus(); }
+    if (input) { input.value = `${el.dataset.text} — `; input.focus(); }
     return;
   }
 
   const side = mySide(state, day);
 
-  if (action === 'pairing') {
-    const id = el.dataset.id;
-    await act(() => Net.mutate((draft) => {
-      const day1 = content.days.find((d) => d.pairing === 'choice');
-      const started = draft.days[day1.id] && draft.days[day1.id].startedAt;
-      if (started) return { ok: false, why: 'Day One has already started. The pairing is set.' };
-      draft.setup.day1PairingId = id;
-    }));
+  if (action === 'flip' || action === 'pairing') {
+    // Roll once, here, so a write that has to be retried cannot re-roll it.
+    const chosen = action === 'flip' ? E.flipDay1Pairing() : el.dataset.id;
+    await act(() => Net.mutate((draft) => E.setDay1Pairing(draft, chosen)));
     return;
   }
   if (action === 'start') {
@@ -752,9 +900,20 @@ document.addEventListener('click', async (ev) => {
   }
   if (action === 'veto') {
     const i = Number(el.dataset.i);
-    const card = content.cards[day.sequence[i].id];
-    if (!confirm(`Veto ${card.title}?\n\n${content.text.vetoRule}`)) return;
+    if (!confirm(`Veto ${content.cards[day.sequence[i].id].title}?\n\n${content.text.vetoRule}`)) return;
     await act(() => Net.mutate((draft) => E.vetoCard(draft, day, side, i, me, Date.now())));
+    return;
+  }
+  if (action === 'attempt') {
+    const i = Number(el.dataset.i);
+    const op = opId();
+    await act(() => Net.mutate((draft) => E.logAttempt(draft, day, side, i, me, op, Date.now())));
+    return;
+  }
+  if (action === 'evidence') {
+    const on = el.dataset.on === '1';
+    await act(() => Net.mutate((draft) =>
+      E.setEvidence(draft, day, side, el.dataset.card, el.dataset.item, on)));
     return;
   }
   if (action === 'position') {
@@ -770,17 +929,18 @@ document.addEventListener('click', async (ev) => {
     return;
   }
   if (action === 'standing') {
+    const op = opId();
     await act(() => Net.mutate((draft) =>
-      E.logStanding(draft, day, el.dataset.mech, el.dataset.btn, me, Date.now())));
+      E.logStanding(draft, day, el.dataset.mech, el.dataset.btn, me, op, Date.now())));
     return;
   }
   if (action === 'findmy') {
-    await act(() => Net.mutate((draft) => { E.logFindMy(draft, day, side, Date.now()); }));
+    const op = opId();
+    await act(() => Net.mutate((draft) => E.logFindMy(draft, day, side, me, op, Date.now())));
     return;
   }
   if (action === 'verdict') {
-    await act(() => Net.mutate((draft) =>
-      E.setVerdict(draft, day, el.dataset.card, el.dataset.side)));
+    await act(() => Net.mutate((draft) => E.setVerdict(draft, day, el.dataset.card, el.dataset.side)));
     return;
   }
   if (action === 'declare') {
@@ -793,17 +953,13 @@ document.addEventListener('click', async (ev) => {
     if (!text) { say('Nothing to enter.'); return; }
     if (input) input.value = '';
     await act(() => Net.mutate((draft) => E.addSuperlative(draft, day, me, text)));
-    return;
   }
 });
 
 // --- Boot ------------------------------------------------------------------
 
 document.title = content.siteTitle;
-Net.onChange(() => {
-  const sig = signature(Net.getState());
-  if (sig !== lastSignature) render();
-});
+Net.onChange(() => { if (signature(Net.getState()) !== lastSignature) render(); });
 Net.startPolling();
 render();
 setInterval(tick, 1000);

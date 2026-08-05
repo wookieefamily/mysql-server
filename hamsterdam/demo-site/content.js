@@ -173,6 +173,8 @@ export const content = {
     // ---- DAY ONE ----
     'd1-drawer': {
       title: 'The drawer',
+      evidence: ['photo before', 'photo after'],
+      minutes: 90,
       value: 2400,
       type: 'VERSUS',
       tags: ['timeSink'],
@@ -180,6 +182,7 @@ export const content = {
     },
     'd1-tower': {
       title: 'The book tower',
+      evidence: ['video, ten seconds'],
       value: 1400,
       type: 'AUTO_VETO',
       attempts: 3,
@@ -188,60 +191,70 @@ export const content = {
     },
     'd1-pen': {
       title: 'The pen graveyard',
+      evidence: ['video, proven on paper'],
       value: 900,
       type: 'VERSUS',
       body: 'Find the worst pen in this house. It must be proven dead on paper, on camera. Most thoroughly dead pen wins. Chewing is an aggravating factor.',
     },
     'd1-chair': {
       title: 'A chair that has given up',
+      evidence: ['video, with concern'],
       value: 800,
       type: 'VERSUS',
       body: 'The most defeated seating in the house. Video, with sincere expressed concern for it. Judged on the sag and on the sincerity, separately.',
     },
     'd1-slipper': {
       title: 'The defeated slipper',
+      evidence: ['photo'],
       value: 800,
       type: 'VERSUS',
       body: 'Flattened, odd, sole departed, found under something. Most thoroughly finished slipper wins.',
     },
     'd1-beige': {
       title: 'Beige on purpose',
+      evidence: ['photo', 'your defence'],
       value: 700,
       type: 'VERSUS',
       body: 'Find something that is beige because somebody chose beige, not beige because it faded. Both teams present. The better defence of the distinction takes it, not the better object.',
     },
     'd1-magnets': {
       title: 'Fridge magnets',
+      evidence: ['photo of the door', 'your best four'],
       value: 900,
       type: 'VERSUS',
       body: 'Photograph the fridge door. Present your best four magnets. Judged on the four, not the count. Double if the winning set includes somewhere nobody in this room has been.',
     },
     'd1-mugs': {
       title: 'Three mugs, three rooms',
+      evidence: ['photo, three rooms'],
       value: 900,
       type: 'SOLO',
       body: 'Three separate mugs, three separate rooms, none of them the kitchen. They may be clean. They will not be.',
     },
     'd1-coins': {
       title: 'Exact change in the sofa',
+      evidence: ['photo in your palm'],
       value: 800,
       type: 'SOLO',
       body: 'Find coins down the back of something soft. Photograph them in your palm. Nobody is allowed to lift a cushion for you.',
     },
     'd1-cupboard': {
       title: 'Food from a cupboard',
+      evidence: ['photo of the date'],
       value: 600,
       type: 'SOLO',
       body: 'Find a tin whose best-before date has passed. Photograph the date with the tin still on the shelf.',
     },
     'd1-socks': {
       title: 'Sock census',
+      evidence: ['photo of the drawer'],
       value: 500,
       type: 'SOLO',
       body: 'Count the odd socks in one drawer. Photograph the drawer as you count.',
     },
     'd1-basket': {
       title: 'The laundry basket landing',
+      evidence: ['video of the landing'],
       value: 1200,
       type: 'AUTO_VETO',
       attempts: 5,
@@ -249,6 +262,7 @@ export const content = {
     },
     'd1-spoon': {
       title: 'The wooden spoon',
+      evidence: ['photo'],
       value: 1200,
       type: 'SOLO',
       // Marks this as the card that appears on two days. If either team
@@ -259,6 +273,7 @@ export const content = {
     },
     'd1-ask': {
       title: 'Ask someone in this house',
+      evidence: ['who you asked', 'the story'],
       value: 900,
       type: 'VERSUS',
       body: 'Ask somebody who lives here where the good scissors are. Go there. Better story wins, not better scissors.',
@@ -267,6 +282,8 @@ export const content = {
     // ---- DAY TWO ----
     'd2-cupboard': {
       title: 'The whole cupboard',
+      evidence: ['photo, ten things'],
+      minutes: 90,
       value: 2200,
       type: 'VERSUS',
       tags: ['timeSink'],
@@ -274,6 +291,7 @@ export const content = {
     },
     'd2-tower': {
       title: 'The second tower',
+      evidence: ['video, ten seconds'],
       value: 1400,
       type: 'AUTO_VETO',
       attempts: 3,
@@ -282,54 +300,63 @@ export const content = {
     },
     'd2-sofa': {
       title: 'Under the sofa',
+      evidence: ['photo from underneath'],
       value: 1000,
       type: 'VERSUS',
       body: 'Get underneath the largest piece of furniture in the house and photograph what is under there, with the underside visibly above you. Best find wins.',
     },
     'd2-seat': {
       title: 'Best seat in the house',
+      evidence: ['photo', 'your defence'],
       value: 1000,
       type: 'VERSUS',
       body: 'Nominate the single best place to sit in this house and defend it. The winning team picks what is on television tonight.',
     },
     'd2-decades': {
       title: 'Two decades apart',
+      evidence: ['photo from one spot', 'both dates'],
       value: 900,
       type: 'VERSUS',
       body: 'Two objects visible from one standing position, acquired at least twenty years apart. Largest verified gap wins. Be able to say roughly when each arrived.',
     },
     'd2-tupperware': {
       title: 'A very small tupperware',
+      evidence: ['photo beside your hand'],
       value: 800,
       type: 'VERSUS',
       body: 'A container too small to hold a useful amount of anything. Photograph it beside your hand, not in it. Smallest wins. Double if it still has its own lid.',
     },
     'd2-fridge': {
       title: 'Eat something from the back of the fridge',
+      evidence: ['video of the eating', 'the label'],
       value: 800,
       type: 'VERSUS',
       body: 'You may not read the label before eating it. Eat it. Then read it. Weirdest thing successfully eaten wins. Nothing actually off.',
     },
     'd2-gadget': {
       title: 'A gadget worth more than a car',
+      evidence: ['photo', 'your valuation'],
       value: 700,
       type: 'VERSUS',
       body: 'The most absurd single-purpose device in the kitchen. Argue its value at the table. Anything that only spiralises counts double in spirit and not at all in coins.',
     },
     'd2-shelf': {
       title: 'The empty shelf',
+      evidence: ['photo'],
       value: 800,
       type: 'SOLO',
       body: 'Find a shelf with nothing on it and photograph it before anybody puts anything on it. Double if somebody who does not live here takes the photograph.',
     },
     'd2-remotes': {
       title: 'Three remote controls',
+      evidence: ['photo, three of them'],
       value: 700,
       type: 'SOLO',
       body: 'Three separate remotes for three separate things. Double if one of them is for something nobody owns any more.',
     },
     'd2-towels': {
       title: 'Three colours of towel',
+      evidence: ['photo'],
       value: 500,
       type: 'SOLO',
       body: 'Three different towels, three genuinely different colours, all in the same room.',
@@ -338,6 +365,8 @@ export const content = {
     // ---- DAY THREE ----
     'd3-cupboards': {
       title: 'Three cupboards',
+      evidence: ['photo, all three'],
+      minutes: 120,
       value: 2400,
       type: 'VERSUS',
       tags: ['timeSink'],
@@ -345,6 +374,7 @@ export const content = {
     },
     'd3-span': {
       title: 'The taller tower',
+      evidence: ['video, ten seconds'],
       value: 1400,
       type: 'AUTO_VETO',
       attempts: 3,
@@ -353,54 +383,63 @@ export const content = {
     },
     'd3-explain': {
       title: 'Something you cannot explain',
+      evidence: ['photo'],
       value: 1400,
       type: 'VERSUS',
       body: 'Find and photograph one object in this house that neither team can account for. Both presented at the table. The one that survives explanation wins.',
     },
     'd3-junk': {
       title: 'The junk drawer market',
+      evidence: ['photo, three things'],
       value: 1000,
       type: 'VERSUS',
       body: 'Take three things from three different drawers, none of them a drawer you have already opened today. Best three wins.',
     },
     'd3-best': {
       title: 'Ask for the best thing in this room',
+      evidence: ['who you asked', 'photo of the outcome'],
       value: 900,
       type: 'VERSUS',
       body: 'Ask somebody what the best thing in the room you are standing in is. Do whatever they say. Better outcome wins. If they say nothing in here is any good, that counts and is funnier.',
     },
     'd3-shelf': {
       title: 'A shelf from a shelf',
+      evidence: ['photo, one frame'],
       value: 900,
       type: 'VERSUS',
       body: 'Stand at one shelf and photograph another. Most shelves visible in one frame wins.',
     },
     'd3-hooks': {
       title: 'Hooks',
+      evidence: ['your best five'],
       value: 800,
       type: 'VERSUS',
       body: 'Almost every hallway has more coat hooks than coats. Present your best five. Double if the winning set catches one actually in use.',
     },
     'd3-cleaner': {
       title: 'A cleaning product you cannot pronounce',
+      evidence: ['video of the attempt'],
       value: 800,
       type: 'VERSUS',
       body: 'Find one by pointing, having failed to say its name. Video of the attempt required. Worst attempt wins. Do not drink it.',
     },
     'd3-fridge': {
       title: 'The oldest thing in the fridge',
+      evidence: ['video at arm’s length', 'photo of the date'],
       value: 1000,
       type: 'SOLO',
       body: 'Find the oldest dated item in the fridge. Photograph the date. Hold it at arm’s length. Do not open it. Video required.',
     },
     'd3-cushions': {
       title: 'Cushion census',
+      evidence: ['photo of the stretch'],
       value: 700,
       type: 'SOLO',
       body: 'Count the cushions on one continuous stretch of soft furniture, minimum two metres. Photograph the stretch.',
     },
     'd3-spoon': {
       title: 'The wooden spoon',
+      evidence: ['photo'],
       value: 1200,
       type: 'SOLO',
       linkedFlag: 'spoonFound',
@@ -408,6 +447,7 @@ export const content = {
     },
     'd3-biscuit': {
       title: 'The last biscuit',
+      evidence: ['photo, standing up'],
       value: 600,
       type: 'SOLO',
       body: 'Fresh from the tin. Eat it standing up. It is the last day.',
@@ -429,6 +469,9 @@ export const content = {
       whistle: '15:30',
       convertAt: '14:45',      // after this, a curse costs coins instead of time
       offsetB: 0,              // both teams start at the same place in the deck
+      // You are apart today, so seeing that they have already banked a card is
+      // pressure rather than a leak. Day 3 turns this off.
+      showOpponentProgress: true,
       findMy: { enabled: true, cost: 300, label: 'Check where they are' },
       zones: {
         A: 'Upstairs and the landing',
@@ -465,6 +508,7 @@ export const content = {
       whistle: '15:00',
       convertAt: '14:15',
       offsetB: 0,
+      showOpponentProgress: true,
       findMy: { enabled: true, cost: 300, label: 'Check where they are' },
       zones: {
         A: 'North of the kettle',
@@ -499,6 +543,9 @@ export const content = {
       // Same deck, same order, phase-shifted. Otherwise on a same-ground day
       // both teams stand in the same place all afternoon.
       offsetB: 6,
+      // Same ground, interference allowed. Showing their progress would remove
+      // everything there is to bluff about.
+      showOpponentProgress: false,
       findMy: { enabled: true, cost: 0, label: 'Check where they are — free today' },
       zones: null,             // same ground, no split
       interference: 'Misdirection, decoys, claiming a room first: fair. Flat lies, hiding their things, physical blocking: not.',

@@ -34,14 +34,26 @@ morning is just pressing start.
     sticks on that phone.
 
  2. TEAMS
-    On the start screen, set Day One's pairing. Day Two fills in with the other
-    pairing by itself. Day Three is fixed at Parents vs Kids and offers no
-    choice. You cannot use a pairing twice or leave one unused.
+    Tap FLIP FOR DAY ONE. All four phones see the same result at the same
+    moment, and it cannot be re-rolled.
+
+    Four players make exactly three ways to split into two pairs. Day Three is
+    fixed at Parents vs Kids, so the other two pairings fall on Days One and
+    Two — which means across the three days each of you partners each of the
+    other three exactly once. The only thing the flip decides is which of those
+    two comes first. The table shows all three days at once so you can see it.
+
+    (If you would rather flip a real coin at the table, there is a "set it by
+    hand" control underneath.)
 
  3. DEAL, COMPLETE, VETO, FREEZE
     Press START DAY. Three cards deal. Complete one and the next arrives. Veto
     one: you freeze for ten demo minutes — 100 real seconds on this clock — and
     the next card will not come until it clears.
+
+    AUTO-VETO cards have no veto button. They have FAILED ATTEMPT instead, with
+    tally marks counting down. When the last attempt goes, the card closes
+    itself and the next one comes — no penalty, which is what AUTO-VETO means.
 
  4. A CURSE FIRES
     Keep completing. A curse arrives on its own, printed white on black. It
@@ -77,6 +89,31 @@ morning is just pressing start.
 The demo clock runs at one demo minute per ten real seconds, so a full day
 plays through in about half an hour. Day Three is about 35 minutes; Day Two,
 about 30.
+
+
+READING A CARD
+--------------
+
+  No. 4 of 14     where you are in the deck
+  Coloured band   what kind of card it is, readable at arm's length:
+                  VERSUS black, SOLO green, BUILD blue, TIME SINK ochre,
+                  CURSE inverted
+  The big number  what it is worth TO YOU right now — halved if a curse has
+                  halved it, not the number originally printed
+  WIN / LOSE      a VERSUS pays the winner in full and the loser a quarter,
+                  or a third if it is the TIME SINK
+  EVIDENCE        what you still owe before you tap Complete. Tick as you go.
+                  It never blocks Complete — you are the authority, not the app
+  Opponent line   on Days One and Two only, whether the other team has already
+                  banked this card. Day Three hides it, because you are on the
+                  same ground and bluffing is allowed
+
+The black bar under the clock — NOW — always says the single most useful thing:
+what you are frozen by, what a curse has done to you, or that the Position is
+still open at ×3 and how many completions are left before it drops to ×2.
+
+DAY SHEET is the record of what has happened, newest last, stamped COMPLETED,
+PENDING, WON, LOST, VETOED or BEAT YOU, with the coin count underneath.
 
 
 CHANGING THE CARDS

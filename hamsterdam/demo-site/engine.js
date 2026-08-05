@@ -105,6 +105,9 @@ export function newTeamState(offset) {
     hand: [],          // absolute sequence indices
     done: [],
     vetoed: [],
+    failed: [],        // AUTO-VETO cards that ran out of attempts. No penalty.
+    attemptLog: [],    // [{ id, cardId, by, at }] — id makes a retry safe
+    evidence: {},      // { [cardId]: { [item]: true } }
     curses: [],
     discarded: [],
     freezeUntil: null, // real epoch ms
@@ -147,7 +150,9 @@ export function ensureDay(state, day) {
       startMinutes: null,
       teams: { A: newTeamState(0), B: newTeamState(day.offsetB || 0) },
       standing: {},
-      findMy: { A: 0, B: 0 },
+      // A log rather than a counter, so a write that loses a race and gets
+      // re-applied cannot count the same look twice.
+      findMyLog: [],   // [{ id, side, by, at }]
       dinner: { verdicts: {}, superlatives: [], declared: false },
     };
   }
@@ -394,30 +399,147 @@ export function checkSweep(state, day, side, nowEpoch = Date.now()) {
   const team = ds.teams[side];
   if (team.swept) return;
   const live = liveCardIds(day, state.flags);
-  const doneIds = new Set(team.done.map((d) => d.cardId));
-  if (live.length > 0 && live.every((id) => doneIds.has(id))) {
+  // Completed, or beaten after its last attempt. A card you chose to veto still
+  // blocks the sweep; a card that ran you out of attempts does not, because
+  // failing an AUTO-VETO is not a choice and is expected.
+  const resolved = new Set([
+    ...team.done.map((d) => d.cardId),
+    ...team.failed.map((f) => f.cardId),
+  ]);
+  if (live.length > 0 && live.every((id) => resolved.has(id))) {
     team.swept = true;
     team.sweptAt = nowEpoch;
     team.hand = [];
   }
 }
 
-export function logStanding(state, day, mechanicId, buttonId, by, nowEpoch = Date.now()) {
+// Every appending action carries an id minted once at the tap. A write that
+// loses a compare-and-swap race is re-applied against fresh state, and without
+// the id that would count the same tap twice.
+export function logStanding(state, day, mechanicId, buttonId, by, opId, nowEpoch = Date.now()) {
   const ds = ensureDay(state, day);
   const mech = content.standingMechanics.find((m) => m.id === mechanicId);
   if (!mech) return { ok: false, why: 'Unknown mechanic.' };
   const list = ds.standing[mechanicId] || (ds.standing[mechanicId] = []);
+  if (list.some((f) => f.id === opId)) return { ok: true };
   if (mech.dailyLimit != null && list.length >= mech.dailyLimit) {
     return { ok: false, why: 'Already fired today.' };
   }
-  list.push({ buttonId, by, at: nowEpoch });
+  list.push({ id: opId, buttonId, by, at: nowEpoch });
   return { ok: true };
 }
 
-export function logFindMy(state, day, side, nowEpoch = Date.now()) {
+export function logFindMy(state, day, side, by, opId, nowEpoch = Date.now()) {
   const ds = ensureDay(state, day);
-  ds.findMy[side] = (ds.findMy[side] || 0) + 1;
-  return ds.findMy[side];
+  if (ds.findMyLog.some((f) => f.id === opId)) return { ok: true };
+  ds.findMyLog.push({ id: opId, side, by, at: nowEpoch });
+  return { ok: true };
+}
+
+export function findMyCount(dayState, side) {
+  return dayState.findMyLog.filter((f) => f.side === side).length;
+}
+
+// --- AUTO-VETO attempts ----------------------------------------------------
+//
+// "Limited attempts, no penalty for failure, usually fails." The card used to
+// print its attempt count and nothing counted them.
+
+export function attemptsUsed(team, cardId) {
+  return team.attemptLog.filter((a) => a.cardId === cardId).length;
+}
+
+export function attemptsLeft(team, card, cardId) {
+  if (!card.attempts) return null;
+  return Math.max(0, card.attempts - attemptsUsed(team, cardId));
+}
+
+export function logAttempt(state, day, side, absIndex, by, opId, nowEpoch = Date.now()) {
+  const ds = ensureDay(state, day);
+  const team = ds.teams[side];
+  const entry = day.sequence[absIndex];
+  const card = content.cards[entry.id];
+  if (!card || !card.attempts) return { ok: false, why: 'That card has no attempt limit.' };
+  if (team.attemptLog.some((a) => a.id === opId)) return { ok: true };
+  if (!team.hand.includes(absIndex)) return { ok: false, why: 'That card is not in your hand.' };
+  if (isAfterWhistle(day, ds, nowEpoch)) return { ok: false, why: 'The whistle has gone.' };
+
+  team.attemptLog.push({ id: opId, cardId: entry.id, by, at: nowEpoch });
+
+  if (attemptsUsed(team, entry.id) >= card.attempts) {
+    // Out of attempts. The card closes itself and the next one comes. No
+    // penalty and no freeze — that is what AUTO-VETO means.
+    team.failed.push({ i: absIndex, cardId: entry.id, at: nowEpoch, gameAt: gameNow(ds, nowEpoch) });
+    team.hand = team.hand.filter((i) => i !== absIndex);
+    refill(day, ds, side, state.flags, nowEpoch);
+    checkSweep(state, day, side, nowEpoch);
+    return { ok: true, closed: true };
+  }
+  return { ok: true };
+}
+
+// --- Evidence --------------------------------------------------------------
+//
+// A checklist, not a gate. The players are the authority on whether a card was
+// done; this only stops arguments at dinner about what was owed.
+
+export function setEvidence(state, day, side, cardId, item, on) {
+  const ds = ensureDay(state, day);
+  const team = ds.teams[side];
+  const bag = team.evidence[cardId] || (team.evidence[cardId] = {});
+  if (on) bag[item] = true; else delete bag[item];
+  return { ok: true };
+}
+
+export function evidenceFor(team, cardId) {
+  return team.evidence[cardId] || {};
+}
+
+// --- What a card is actually worth to you, right now -----------------------
+//
+// One function, used by the card and by the ledger, so the number on the card
+// and the number in the ledger can never disagree.
+export function cardPayout(day, dayState, side, cardId, opts = {}) {
+  const card = content.cards[cardId];
+  const team = dayState.teams[side];
+  const versus = isVersus(card);
+  // For a completed card the halving is whatever was true at completion; for a
+  // card still in hand it is whatever is hanging over the team now.
+  const halved = opts.half != null ? opts.half : team.halfPending;
+  const factor = halved ? 0.5 : 1;
+
+  const pos = team.position;
+  const isPosition = !!pos && pos.cardId === cardId;
+  const mult = isPosition
+    ? (pos.triple ? content.rules.positionTriple : content.rules.positionDouble)
+    : 1;
+
+  return {
+    versus,
+    halved,
+    isPosition,
+    mult,
+    base: card.value,
+    // What the card is worth on completion before any Position bet — this is
+    // the number printed large on the card.
+    face: Math.round(card.value * factor),
+    // Winning a VERSUS, or simply completing anything else, bet included.
+    win: Math.round(card.value * factor * mult),
+    // The loser's share is not multiplied — a Position that loses the judgment
+    // has failed, and takes the penalty on top.
+    lose: versus ? Math.round(card.value * factor * loserShare(card)) : null,
+    losePct: versus ? Math.round(loserShare(card) * 100) : null,
+    failPenalty: isPosition ? content.rules.positionFailPenalty : 0,
+  };
+}
+
+// Has the other team already banked this card? Null when the day hides it —
+// Day 3 is same-ground with interference allowed, and showing their hand would
+// remove everything there is to bluff about.
+export function opponentBanked(day, dayState, side, cardId) {
+  if (!day.showOpponentProgress) return null;
+  const other = side === 'A' ? 'B' : 'A';
+  return dayState.teams[other].done.some((d) => d.cardId === cardId);
 }
 
 export function setVerdict(state, day, cardId, side) {
@@ -476,15 +598,12 @@ export function scoreTeam(day, dayState, side, state, nowEpoch = Date.now()) {
 
   for (const entry of team.done) {
     const card = content.cards[entry.cardId];
-    let value = card.value;
-    let note = '';
+    // Same function the card itself prints from.
+    const pay = cardPayout(day, dayState, side, entry.cardId, { half: entry.half });
+    const notes = [];
+    if (pay.halved) notes.push('half');
 
-    if (entry.half) {
-      value = value / 2;
-      note = 'half';
-    }
-
-    if (isVersus(card)) {
+    if (pay.versus) {
       const verdict = verdicts[entry.cardId];
       if (!verdict) {
         pending += 1;
@@ -495,19 +614,32 @@ export function scoreTeam(day, dayState, side, state, nowEpoch = Date.now()) {
         continue;
       }
       if (verdict !== side) {
-        const share = loserShare(card);
-        value = value * share;
-        note = note ? `${note}, loser ${Math.round(share * 100)}%` : `loser ${Math.round(share * 100)}%`;
+        notes.push(`loser ${pay.losePct}%`);
+        lines.push({
+          label: card.title, value: pay.lose, note: notes.join(', '), cardId: entry.cardId,
+        });
+        continue;
       }
     }
 
-    if (pos && pos.i === entry.i && posOutcome && posOutcome.state === 'landed') {
-      const mult = positionMultiplier(pos);
-      value = value * mult;
-      note = note ? `${note}, Position ×${mult}` : `Position ×${mult}`;
-    }
+    // Won it, or it was never contested. The Position multiplier only lands
+    // here, which is why cardPayout folds it into `win` and not into `lose`.
+    const landed = pay.isPosition && posOutcome && posOutcome.state === 'landed';
+    if (landed) notes.push(`Position ×${pay.mult}`);
+    lines.push({
+      label: card.title,
+      value: landed ? pay.win : Math.round(pay.win / pay.mult),
+      note: notes.join(', '),
+      cardId: entry.cardId,
+    });
+  }
 
-    lines.push({ label: card.title, value: Math.round(value), note, cardId: entry.cardId });
+  for (const entry of team.failed) {
+    lines.push({
+      label: content.cards[entry.cardId].title,
+      value: 0,
+      note: 'out of attempts — no penalty',
+    });
   }
 
   if (pos && posOutcome && posOutcome.state === 'failed') {
@@ -562,7 +694,7 @@ export function scoreTeam(day, dayState, side, state, nowEpoch = Date.now()) {
   }
 
   if (day.findMy && day.findMy.enabled && day.findMy.cost > 0) {
-    const looks = dayState.findMy[side] || 0;
+    const looks = findMyCount(dayState, side);
     if (looks > 0) {
       lines.push({
         label: `${day.findMy.label} × ${looks}`,
@@ -633,6 +765,33 @@ export function pendingVersus(day, dayState) {
   const order = day.sequence.map((e) => e.id);
   out.sort((a, b) => order.indexOf(a.cardId) - order.indexOf(b.cardId));
   return out;
+}
+
+// "No. 4 of 14" — a card's place among the cards, ignoring the curses that sit
+// between them. Both teams share one sequence, so this means the same to both.
+export function cardOrdinals(day, flags) {
+  const map = {};
+  liveCardIds(day, flags).forEach((id, i) => { map[id] = i + 1; });
+  return map;
+}
+
+// The two pairings that Days 1 and 2 share out. With four players there are
+// exactly three ways to make two pairs; Day 3 takes one, so these two are what
+// remain — which means everybody partners everybody else exactly once across
+// the three days. Which of the two falls on Day 1 is a coin flip, not a choice.
+export function flipDay1Pairing(rand = Math.random()) {
+  const options = content.choosablePairings;
+  return options[Math.floor(rand * options.length) % options.length].id;
+}
+
+export function setDay1Pairing(state, pairingId) {
+  // Never overwrite. Two phones tapping flip at once must agree, and nobody
+  // gets to roll it again because they did not like it.
+  if (state.setup.day1PairingId) {
+    return { ok: false, why: 'Already flipped. It stands.' };
+  }
+  state.setup.day1PairingId = pairingId;
+  return { ok: true };
 }
 
 export function deckProgress(day, dayState, side, flags) {
