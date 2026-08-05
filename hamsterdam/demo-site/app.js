@@ -355,7 +355,10 @@ function pairingTable(state) {
 
 function screenStart(state, day) {
   const pairing = E.pairingForDay(state, day);
-  const flipped = !!state.setup.day1PairingId;
+  const side = mySide(state, day);
+  const names = teamNames(state, day);
+  // Days One and Two wait on the flip. Day Three is fixed and never does.
+  const needsFlip = !pairing;
 
   return `
   ${masthead(state, day)}
@@ -365,30 +368,41 @@ function screenStart(state, day) {
   <div style="height:14px"></div>
 
   <div class="block">
-    <div class="label">Teams</div>
-    <p class="note">Day Three is fixed: ${esc(content.fixedPairing.label)}. That leaves exactly two pairings
-    for Days One and Two, so across the three days each of you partners each of the other three once.
-    Which pairing falls on Day One is a coin flip.</p>
-
-    ${flipped ? '' : `
+    <div class="label">Today</div>
+    ${needsFlip ? `
+      <p class="note">Who you play with today is a coin flip. All four phones see the same result at the
+      same moment, and it cannot be re-rolled.</p>
       <div style="margin:14px 0">
-        <button class="big primary" data-act="flip">Flip for Day One</button>
+        <button class="big primary" data-act="flip">Flip for Days One and Two</button>
       </div>
-      <p class="note center">All four phones will see the same result. It cannot be re-flipped.</p>`}
-
-    <div style="margin-top:14px">${pairingTable(state)}</div>
-
-    ${flipped
-      ? '<p class="note" style="margin-top:10px">Flipped and locked.</p>'
-      : `<details style="margin-top:12px"><summary class="tiny">Already flipped a real coin? Set it by hand</summary>
+      <details><summary class="tiny">Already flipped a real coin? Set it by hand</summary>
         <div class="picker" style="margin-top:10px">
           ${content.choosablePairings.map((p) => `
             <button class="pick" data-act="pairing" data-id="${esc(p.id)}">
               <span>${esc(p.A.name)}<br><span class="tiny">against ${esc(p.B.name)}</span></span>
               <span class="tick">Day 1</span>
             </button>`).join('')}
-        </div></details>`}
+        </div></details>`
+    : `
+      <table class="ledger">
+        <tr><td>${esc(names.A)}</td><td class="n">${side === 'A' ? 'You' : ''}</td></tr>
+        <tr><td>${esc(names.B)}</td><td class="n">${side === 'B' ? 'You' : ''}</td></tr>
+        <tr><td class="sub">Whistle</td><td class="n">${esc(day.whistle)}</td></tr>
+        <tr><td class="sub">Deck</td><td class="n">${E.liveCardIds(day, state.flags).length} cards</td></tr>
+      </table>
+      ${day.pairing === 'fixed'
+        ? `<p class="note" style="margin-top:10px">Fixed: ${esc(content.fixedPairing.label)}. Not flipped for.</p>`
+        : '<p class="note" style="margin-top:10px">Flipped and locked.</p>'}`}
   </div>
+
+  <details class="block">
+    <summary class="label">How the pairings work</summary>
+    <p class="note" style="margin-top:10px">Four players make exactly three ways to split into two pairs.
+    Day Three is fixed at ${esc(content.fixedPairing.label)}, so the other two fall on Days One and Two —
+    which means across the three days each of you partners each of the other three exactly once. The flip
+    only decides which of those two comes first.</p>
+    <div style="margin-top:10px">${pairingTable(state)}</div>
+  </details>
 
   <div class="block">
     <div class="label">The clock</div>
@@ -396,12 +410,11 @@ function screenStart(state, day) {
     ${content.clock.speedFactor !== 1
       ? `<strong>${esc(content.clock.note)}</strong> A full day plays through in about ${Math.round((E.parseHM(day.whistle) - E.parseHM(content.clock.fixedStart)) / content.clock.speedFactor)} minutes.`
       : ''}</p>
-    <p class="note" style="margin-top:8px">Deck: ${E.liveCardIds(day, state.flags).length} cards.</p>
   </div>
 
-  <hr class="hard-rule">
-  <button class="big primary" data-act="start" ${!pairing || busy ? 'disabled' : ''}>Start ${esc(day.label)}</button>
-  ${!pairing ? '<p class="note center" style="margin-top:10px">Flip for Day One first.</p>' : ''}`;
+  ${needsFlip ? '' : `
+    <hr class="hard-rule">
+    <button class="big primary" data-act="start" ${busy ? 'disabled' : ''}>Start ${esc(day.label)}</button>`}`;
 }
 
 function scoreBoard(state, day, dayState) {
