@@ -1,0 +1,10 @@
+{
+  "name": "hamsterdam-function-src",
+  "private": true,
+  "type": "module",
+  "description": "Source for the Netlify state function. Bundled to zero deps with esbuild; not deployed.",
+  "dependencies": {
+    "@netlify/blobs": "^10.7.12",
+    "esbuild": "^0.28.1"
+  }
+}

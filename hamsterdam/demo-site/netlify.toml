@@ -1,0 +1,22 @@
+# Drag this folder onto Netlify. There is no build step and nothing to install.
+#
+# The function in netlify/functions/ is already bundled to zero dependencies,
+# which is the only way it can work on a drag-and-drop deploy — those never run
+# npm install.
+
+[build]
+  publish = "."
+  command = ""
+
+[functions]
+  directory = "netlify/functions"
+
+# Content changes by swapping content.js and dropping the folder again, so the
+# app itself must never be served from a stale cache. Photos are immutable and
+# set their own long cache in the function.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+    X-Robots-Tag = "noindex, nofollow"
+    Referrer-Policy = "no-referrer"
