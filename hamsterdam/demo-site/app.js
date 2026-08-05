@@ -503,7 +503,7 @@ function screenDinner(state, day, dayState) {
       if (s === 'divider') return '<div class="divider"></div>';
       return `<div class="score${winner === s ? ' mine' : ''}">
         <div class="team-name">${esc(names[s])}</div>
-        <span class="coin${totals[s].banked < 0 ? ' neg' : ''}">${coins(totals[s].banked)}</span>
+        <span class="coin${totals[s].banked < 0 ? ' neg' : ''}" data-coin="${s}" data-value="${totals[s].banked}">${coins(totals[s].banked)}</span>
         <div class="meta">${totals[s].pending ? `${totals[s].pending} pending` : 'settled'}</div>
       </div>`;
     }).join('')}
