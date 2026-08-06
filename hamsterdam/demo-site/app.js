@@ -92,11 +92,11 @@ async function act(fn) {
 // reading a word of it. Two kinds only, and neither is jargon.
 function typeBar(card) {
   const type = E.cardTypeOf(card);
-  const out = [`<span class="chip ${card.type === 'VERSUS' ? 'solid' : 'green'}">${esc(type.label)}</span>`];
+  const out = [`<span class="chip ${card.type === 'VERSUS' ? 'navy' : 'sea'}">${esc(type.label)}</span>`];
   for (const tagId of card.tags || []) {
     const tag = content.cardTags[tagId];
     if (!tag) continue;
-    const cls = { timeSink: 'ochre', build: 'blue', anywhere: 'plain' }[tagId] || 'blue';
+    const cls = { timeSink: 'tan', build: 'sea', anywhere: 'plain' }[tagId] || 'sea';
     out.push(`<span class="chip ${cls}">${esc(tag.label)}</span>`);
   }
   return `<div class="typebar">${out.join('')}</div>`;
@@ -194,7 +194,7 @@ function curseMarkup(day, rec) {
   return `
   <article class="card curse">
     <div class="slug"><span>Drawn ${esc(E.formatHM(rec.gameAt))}</span><span>Curse</span></div>
-    <div class="typebar"><span class="chip red">${esc(band)}</span></div>
+    <div class="typebar"><span class="chip signal">${esc(band)}</span></div>
     <div class="pad">
       <div class="cardhead">
         <h2 class="cardtitle">${esc(curse.title)}</h2>
@@ -222,7 +222,7 @@ function nowBand(state, day, dayState, side) {
     tone = 'warn';
     text = 'The whistle has gone. Play is over — dinner decides it.';
   } else if (team.swept) {
-    tone = 'green';
+    tone = 'sea';
     text = `Deck cleared. Play has stopped for you and ${coins(content.rules.cleanSweepBonus)} is banked.`;
   } else if (E.isFrozen(team, now)) {
     tone = 'warn';
@@ -470,7 +470,7 @@ function recordCard(day, state, entry, kind, ordinals, total, verdicts) {
     const curse = content.curses[entry.curseId];
     return `<article class="card curse">
       <div class="slug"><span>Drawn ${esc(E.formatHM(entry.gameAt))}</span><span>Curse</span></div>
-      <div class="typebar"><span class="chip red">Curse${entry.converted ? ' · late' : ''}</span></div>
+      <div class="typebar"><span class="chip signal">Curse${entry.converted ? ' · late' : ''}</span></div>
       <div class="pad">
         <h2 class="cardtitle">${esc(curse.title)}</h2>
         <div class="recordfoot"><div class="price">${coins(curse.value)}</div></div>
@@ -485,8 +485,8 @@ function recordCard(day, state, entry, kind, ordinals, total, verdicts) {
   let stampCls = '';
   if (kind === 'vetoed') { stamp = 'Vetoed'; }
   else if (kind === 'failed') { stamp = 'Beat you'; }
-  else if (versus && !verdict) { stamp = 'Pending'; stampCls = ' green'; }
-  else if (versus && verdict) { stamp = verdict === entry.side ? 'Won' : 'Lost'; stampCls = verdict === entry.side ? ' green' : ''; }
+  else if (versus && !verdict) { stamp = 'Pending'; stampCls = ' sea'; }
+  else if (versus && verdict) { stamp = verdict === entry.side ? 'Won' : 'Lost'; stampCls = verdict === entry.side ? ' sea' : ''; }
 
   const who = entry.by ? ` · ${playerName(entry.by)}` : '';
   const shots = state.photos.filter((p) => p.dayId === day.id && p.cardId === entry.cardId && p.side === entry.side);
@@ -704,7 +704,9 @@ function render() {
 }
 
 function renderScreens() {
-  bannerEl.textContent = content.banner;
+  // The real build has no banner to show — that strip exists to shout DEMO.
+  bannerEl.textContent = content.banner || '';
+  bannerEl.classList.toggle('hide', !content.banner);
   const state = Net.getState();
   const day = currentDay();
 

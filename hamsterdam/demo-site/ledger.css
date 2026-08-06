@@ -1,29 +1,37 @@
 /* ==========================================================================
-   HAMSTERDAM — LEDGER
-   A merchant's ledger: ruled columns, coloured type bands, stamps, tally marks.
+   HAMSTERDAM
+   Navy, white, tan. Chart paper and signal flags rather than a ledger.
    Read at arm's length, in direct August sun, one-handed.
 
    Light ground on purpose. In bright sun a dark theme reads worse, not better —
    the screen is already washed out and dark pixels have nowhere to go.
+
+   Every colour below carries white text at 5.8:1 or better, and navy on white
+   is 15:1 — so none of this is a compromise on legibility.
    ========================================================================== */
 
 :root {
-  --paper: #f2ede2;
-  --paper-deep: #e6dfcf;
+  --paper: #fbfaf7;        /* white, barely warm */
+  --paper-deep: #efe6d6;   /* sand */
 
-  --ink: #17130e;          /* iron gall: near-black, brown cast */
-  --ink-soft: #4b4137;
-  --ink-faint: #7d7264;
+  --ink: #10233f;          /* navy — text, rules, the primary band */
+  --ink-soft: #405872;
+  --ink-faint: #7a8a9e;
 
-  --rule: #c3b9a5;
-  --rule-hard: #8d8271;
+  --rule: #cbb894;         /* tan hairline */
+  --rule-hard: #a08c68;
 
-  /* Card types are colour-coded so you know what a card is before reading it.
-     Every one of these carries white text at 6.9:1 or better. */
-  --green: #1c4034;        /* SOLO, structure */
-  --blue:  #1b3a6b;        /* BUILD */
-  --ochre: #8a4a10;        /* TIME SINK */
-  --red:   #a5121d;        /* loss, stamps, curse accent */
+  /* Card types are colour-coded so you know what a card is before reading it. */
+  --navy:   #10233f;       /* BOTH TEAMS */
+  --sea:    #1f5f8b;       /* JUST DO IT, structure */
+  --tan:    #7e5220;       /* THE BIG ONE */
+  --signal: #c8102e;       /* loss, stamps, curses */
+
+  /* Kept as aliases so nothing that still says "green" breaks. */
+  --green: var(--sea);
+  --blue:  var(--sea);
+  --ochre: var(--tan);
+  --red:   var(--signal);
 
   --serif: Georgia, 'Iowan Old Style', 'Times New Roman', Times, serif;
   --sans: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -44,9 +52,6 @@ html { -webkit-text-size-adjust: 100%; background: var(--paper); }
 body {
   margin: 0;
   background: var(--paper);
-  /* Laid rag: hairlines in the stock. */
-  background-image: repeating-linear-gradient(to bottom,
-    rgba(23,19,14,.028) 0, rgba(23,19,14,.028) 1px, transparent 1px, transparent 4px);
   color: var(--ink);
   font-family: var(--sans);
   font-size: 17px;
@@ -174,7 +179,7 @@ h1, h2, h3, .cardtitle, .card-title { font-family: var(--serif); font-weight: 70
 }
 .now .t { font-size: 15px; font-weight: 700; line-height: 1.25; }
 .now.warn { background: var(--red); }
-.now.green { background: var(--green); }
+.now.green, .now.sea { background: var(--green); }
 .nowsub {
   font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
   color: var(--ink-faint); padding: 3px 0 14px;
@@ -203,11 +208,12 @@ h1, h2, h3, .cardtitle, .card-title { font-family: var(--serif); font-weight: 70
   font-size: 11.5px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
   background: var(--paper-deep); color: var(--ink);
 }
-.chip.solid { background: var(--ink); color: #fff; }
-.chip.green { background: var(--green); color: #fff; }
-.chip.blue  { background: var(--blue);  color: #fff; }
-.chip.ochre { background: var(--ochre); color: #fff; }
-.chip.red   { background: var(--red);   color: #fff; }
+.chip.solid, .chip.navy { background: var(--navy); color: #fff; }
+.chip.green, .chip.sea   { background: var(--sea);  color: #fff; }
+.chip.blue               { background: var(--sea);  color: #fff; }
+.chip.ochre, .chip.tan   { background: var(--tan);  color: #fff; }
+.chip.red, .chip.signal  { background: var(--signal); color: #fff; }
+.chip.plain { background: var(--paper); color: var(--navy); box-shadow: inset 0 0 0 2px var(--navy); }
 
 .cardhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .cardtitle { font-size: 30px; line-height: 1.08; letter-spacing: -.015em; flex: 1; min-width: 0; }
@@ -271,12 +277,12 @@ h1, h2, h3, .cardtitle, .card-title { font-family: var(--serif); font-weight: 70
   margin-left: calc(var(--gutter) * -1); margin-right: calc(var(--gutter) * -1);
   border-left: none; border-right: none;
 }
-.card.curse .cardtitle { color: #ece5d7; }
-.card.curse .price { color: #ff5d68; }
-.card.curse .body { color: #d6cdba; }
-.card.curse .slug { color: #9d9384; }
-.card.curse .typebar { border-color: #5a5045; }
-.card.curse .pricerule { border-color: #5a5045; }
+.card.curse .cardtitle { color: #eef3f8; }
+.card.curse .price { color: #ff6b7d; }
+.card.curse .body { color: #cdd7e4; }
+.card.curse .slug { color: #8fa0b5; }
+.card.curse .typebar { border-color: #2f4463; }
+.card.curse .pricerule { border-color: #2f4463; }
 
 /* --- Day sheet records --------------------------------------------------- */
 
@@ -297,7 +303,7 @@ h1, h2, h3, .cardtitle, .card-title { font-family: var(--serif); font-weight: 70
   font-size: 14px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
   padding: 4px 9px; transform: rotate(-7deg); opacity: .88;
 }
-.stamp.green { border-color: var(--green); color: var(--green); }
+.stamp.green, .stamp.sea { border-color: var(--green); color: var(--green); }
 
 /* --- Controls ------------------------------------------------------------ */
 
@@ -316,7 +322,7 @@ button.primary[disabled] { background: var(--rule); border-color: var(--rule); c
 button.grow { flex: 1; }
 button.small, button.sm { min-height: 42px; padding: 8px 11px; font-size: 12px; }
 button.danger { border-color: var(--red); color: var(--red); }
-button.green { border-color: var(--green); color: var(--green); }
+button.green, button.sea { border-color: var(--green); color: var(--green); }
 button.big { width: 100%; min-height: 68px; font-size: 20px; letter-spacing: .12em; }
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -362,8 +368,8 @@ label.file input[type='file'] {
 /* --- Notices ------------------------------------------------------------- */
 
 .notice { border: 2px solid var(--ink); padding: 12px; margin-bottom: 14px; font-size: 14px; line-height: 1.4; }
-.notice.green { border-color: var(--green); color: var(--green); }
-.notice.red { border-color: var(--red); color: var(--red); }
+.notice.green, .notice.sea { border-color: var(--green); color: var(--green); }
+.notice.red, .notice.signal { border-color: var(--red); color: var(--red); }
 .notice.solid { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .notice .k {
   display: block; font-size: 11px; letter-spacing: .16em;
@@ -452,9 +458,6 @@ label.file input[type='file'] {
   border: 2px solid var(--rule-hard); background: var(--paper-deep); color: var(--ink);
 }
 .handrow .num { font-size: 22px; white-space: nowrap; }
-
-/* A plain chip for tags that are information rather than a category. */
-.chip.plain { background: var(--paper); color: var(--ink); box-shadow: none; }
 
 /* What you found, in your words. The reason the day sheet exists. */
 .found {
