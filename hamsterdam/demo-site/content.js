@@ -593,7 +593,12 @@ export const content = {
     noRunning: 'NO RUNNING. Nobody runs, for any card, at any point. No card rewards speed.',
     skipRule: 'You get three skips a day. Spend them well.',
     curseRule: 'One draw in six is a curse. Take the coins, then pay.',
-    sweepRule: 'Clear every card before the whistle and play stops for you. The score banks and you take 1,500.',
+    // Two of each, because cleanSweepBonus can be turned back on. {bonus} is
+    // filled in with the amount. At zero the app uses the first of each pair.
+    sweepRule: 'There is no prize for clearing the deck. Going deep on one card beats rushing through six.',
+    sweepRuleBonus: 'Clear every card before the whistle and play stops for you. You take {bonus} on top.',
+    sweepDone: 'Deck cleared — that is the lot. Everything you did is already banked.',
+    sweepDoneBonus: 'Deck cleared. Play has stopped for you and {bonus} is banked.',
     whistleRule: 'The whistle ends play. Dinner declares the winner, because VERSUS cards cannot be settled in the street.',
     dinnerIntro: 'Every VERSUS card both teams reached, side by side. Pick a winner for each, then declare.',
   },

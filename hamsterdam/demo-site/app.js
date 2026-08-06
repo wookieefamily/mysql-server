@@ -39,6 +39,20 @@ const coins = (n) => {
   return (v < 0 ? '−' : '') + Math.abs(v).toLocaleString('en-GB');
 };
 
+// Clearing the deck pays nothing, deliberately — a bonus for finishing is a
+// prize for rushing. But cleanSweepBonus is a content value and can be turned
+// back on, so the wording follows it rather than being written into the app.
+// kind is 'Rule' (how it works) or 'Done' (the deck is cleared).
+const sweepText = (kind) => {
+  const bonus = content.rules.cleanSweepBonus;
+  const t = content.text;
+  const fallback = kind === 'Rule'
+    ? 'There is no prize for clearing the deck.'
+    : 'Deck cleared. Everything you did is already banked.';
+  if (!bonus) return t[`sweep${kind}`] || fallback;
+  return (t[`sweep${kind}Bonus`] || fallback).replace('{bonus}', coins(bonus));
+};
+
 // Minted once per tap. Every appending action carries one, so a write that
 // loses a compare-and-swap race and gets re-applied cannot count twice.
 const opId = () =>
@@ -226,7 +240,7 @@ function nowBand(state, day, dayState, side) {
     text = 'The whistle has gone. Play is over — dinner decides it.';
   } else if (team.swept) {
     tone = 'sea';
-    text = `Deck cleared. Play has stopped for you and ${coins(content.rules.cleanSweepBonus)} is banked.`;
+    text = sweepText('Done');
   } else if (E.isFrozen(team, now)) {
     tone = 'warn';
     text = `Sit down — ${E.formatDuration(E.freezeRemainingGameMinutes(team, now))} to go.`;
@@ -373,8 +387,7 @@ function screenStart(state, day) {
     <p class="note">You hold three cards. Do one and the next arrives. If you do not
     fancy one, skip it — you get ${content.rules.skipsPerDay} skips a day and no more.
     Some cards say <strong>both teams</strong>, and those are settled at dinner:
-    the better one takes the lot, the other takes a quarter. Clear the whole deck
-    before the whistle and you take ${coins(content.rules.cleanSweepBonus)}.</p>
+    the better one takes the lot, the other takes a quarter. ${esc(sweepText('Rule'))}</p>
   </div>
 
   <div class="block">
