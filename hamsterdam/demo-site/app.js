@@ -96,7 +96,8 @@ function typeBar(card) {
   for (const tagId of card.tags || []) {
     const tag = content.cardTags[tagId];
     if (!tag) continue;
-    out.push(`<span class="chip ${tagId === 'timeSink' ? 'ochre' : 'blue'}">${esc(tag.label)}</span>`);
+    const cls = { timeSink: 'ochre', build: 'blue', anywhere: 'plain' }[tagId] || 'blue';
+    out.push(`<span class="chip ${cls}">${esc(tag.label)}</span>`);
   }
   return `<div class="typebar">${out.join('')}</div>`;
 }
@@ -243,6 +244,7 @@ function nowBand(state, day, dayState, side) {
     `<span><b>${progress.done}</b> of ${progress.total} done</span>`,
     totals.pending ? `<span><b>${totals.pending}</b> to settle at dinner</span>` : '',
     `<span><b>${skips}</b> skips left</span>`,
+    E.feature('liveScores') ? '' : '<span>Scores at dinner</span>',
   ].filter(Boolean).join('');
 
   return `<div class="now ${tone}"><span class="k">Now</span><span class="t">${esc(text)}</span></div>
@@ -443,13 +445,20 @@ function screenPlay(state, day, dayState) {
       const at = Math.min(focusAt, hand.length - 1);
       body += cardMarkup(state, day, dayState, side, hand[at]);
       body += handStrip(day, hand, at);
+
+      // Stuck on a platform? Something in hand may not need you to be anywhere.
+      const waitAt = E.anywhereInHand(day, team, now);
+      if (waitAt != null && waitAt !== at) {
+        body += `<button class="grow" data-act="focus" data-n="${waitAt}"
+          style="width:100%">Stuck waiting? Do this one instead</button>`;
+      }
     }
   }
 
   return `
   ${masthead(state, day)}
   ${daySwitcher(state)}
-  ${scoreBoard(state, day, dayState)}
+  ${E.feature('liveScores') ? scoreBoard(state, day, dayState) : ''}
   ${clockBar(day, dayState)}
   ${nowBand(state, day, dayState, side)}
   ${body}`;
@@ -487,11 +496,14 @@ function recordCard(day, state, entry, kind, ordinals, total, verdicts) {
     ${typeBar(card)}
     <div class="pad">
       <h2 class="cardtitle">${esc(card.title)}</h2>
+      ${shots.length ? `<div class="shots">${shots.map((p) => `<img src="${esc(Net.photoUrl(p.id))}" alt="">`).join('')}</div>` : ''}
+      ${entry.note ? `<p class="found">${esc(entry.note)}</p>` : ''}
       <div class="recordfoot">
-        <div class="price">${coins(kind === 'done' ? card.value : 0)}</div>
+        ${E.feature('notes') && kind === 'done'
+          ? `<button class="small" data-act="note" data-card="${esc(entry.cardId)}">${entry.note ? 'Edit the line' : 'Add a line'}</button>`
+          : '<span></span>'}
         <div class="stamp${stampCls}">${esc(stamp)}</div>
       </div>
-      ${shots.length ? `<div class="shots">${shots.map((p) => `<img src="${esc(Net.photoUrl(p.id))}" alt="">`).join('')}</div>` : ''}
     </div>
   </article>`;
 }
@@ -514,16 +526,20 @@ function screenLedger(state, day, dayState) {
   return `
   ${masthead(state, day)}
   ${daySwitcher(state)}
-  ${dayState.startedAt ? scoreBoard(state, day, dayState) : '<p class="note">Not started.</p>'}
+  ${dayState.startedAt && E.feature('liveScores') ? scoreBoard(state, day, dayState) : ''}
 
   <div class="block">
-    <div class="label">The day so far — ${esc(names[side])}</div>
+    <div class="label">What you found — ${esc(names[side])}</div>
     ${records.length
       ? records.map((r) => recordCard(day, state, r, r.kind, ordinals, total, dayState.dinner.verdicts)).join('')
       : '<p class="note">Nothing yet.</p>'}
   </div>
 
-  ${E.SIDES.map((s) => `
+  ${!E.feature('liveScores') ? `<div class="block">
+    <p class="note">The numbers come out at dinner.</p>
+  </div>` : ''}
+
+  ${E.feature('liveScores') ? E.SIDES.map((s) => `
     <div class="block">
       <div class="label">${esc(names[s])} — the count</div>
       <table class="ledger">
@@ -538,7 +554,7 @@ function screenLedger(state, day, dayState) {
           : '<tr><td class="sub">Nothing yet</td><td class="n">0</td></tr>'}
         <tr><td><strong>Banked</strong></td><td class="n"><strong>${coins(totals[s].banked)}</strong></td></tr>
       </table>
-    </div>`).join('')}
+    </div>`).join('') : ''}
 
   <div class="block">
     <div class="label">This phone</div>
@@ -734,6 +750,7 @@ function signature(state) {
     ...E.SIDES.map((s) => {
       const t = ds.teams[s];
       return [s, t.hand.join(','), t.done.length, t.vetoed.length,
+        t.done.map((d) => (d.note ? 1 : 0)).join(''),
         t.curses.length, E.isFrozen(t, now), t.halfPending, t.swept].join(':');
     }),
   ].join('|');
@@ -866,8 +883,26 @@ document.addEventListener('click', async (ev) => {
   }
   if (action === 'complete') {
     const i = Number(el.dataset.i);
+    const cardId = day.sequence[i].id;
     focusAt = 0;
     await act(() => Net.mutate((draft) => E.completeCard(draft, day, side, i, me, Date.now())));
+    // Ask while it is still in your head. Optional — cancel and it is skipped,
+    // and it can always be added later from the day sheet.
+    if (E.feature('notes')) {
+      const line = prompt(`${content.cards[cardId].title}\n\nA line about it? What was it, what happened. Leave blank to skip.`);
+      if (line && line.trim()) {
+        await act(() => Net.mutate((draft) => E.setNote(draft, day, side, cardId, line.trim())));
+      }
+    }
+    return;
+  }
+
+  if (action === 'note') {
+    const cardId = el.dataset.card;
+    const existing = (state.days[day.id].teams[side].done.find((d) => d.cardId === cardId) || {}).note || '';
+    const line = prompt(`${content.cards[cardId].title}\n\nA line about it?`, existing);
+    if (line === null) return;
+    await act(() => Net.mutate((draft) => E.setNote(draft, day, side, cardId, line.trim())));
     return;
   }
   if (action === 'skip') {

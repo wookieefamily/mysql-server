@@ -40,6 +40,13 @@ export const content = {
     evidence: false,           // per-card tick lists
     attempts: false,           // AUTO-VETO attempt tallies
     lateCurseConversion: false,// curses drawn late costing coins not time
+
+    // A running head-to-head total all afternoon makes it a race. Off means the
+    // numbers stay out of sight until dinner, when they all come out at once.
+    liveScores: false,
+    // A photo and a line on each card, so the day sheet becomes the record of
+    // what you found rather than a column of coins.
+    notes: true,
   },
 
   // Escape hatches on the day sheet: start a day over, or clear everything.
@@ -108,7 +115,10 @@ export const content = {
     // One share for every contested card. There used to be two, which nobody
     // could be expected to remember mid-afternoon.
     loserShare: 0.25,
-    cleanSweepBonus: 1500,
+    // No prize for clearing the deck. It paid 1,500 for volume, which is a
+    // reason to rush past things rather than go deep on one. Clearing it still
+    // ends your day; it just is not worth coins.
+    cleanSweepBonus: 0,
   },
 
   // -- Card types -----------------------------------------------------------
@@ -133,6 +143,9 @@ export const content = {
   cardTags: {
     timeSink: { label: 'THE BIG ONE', note: 'Worth a lot, and it will eat most of an afternoon.' },
     build: { label: 'BUILD', note: 'Something to construct.' },
+    // Doable on a train, in a queue, at a table. When you are stuck waiting,
+    // these turn the dead twenty minutes into part of the day.
+    anywhere: { label: 'ANYWHERE', note: 'No particular place needed. Good for a train.' },
   },
 
   // -- Curses ---------------------------------------------------------------
@@ -149,12 +162,16 @@ export const content = {
   //   blank    — next draw discarded unseen, then a freeze of `minutes`
   // Three kinds. Each is one sentence, each enforces itself, and the app tells
   // you exactly what to do when one lands. There used to be eight.
+  // Three kinds, and not one of them costs you time. A penalty that makes you
+  // stand still for fifteen minutes is a mechanic whose entire content is "be
+  // bored", which is the opposite of the point of the day. You take the coins,
+  // then you pay in coins.
   curses: {
-    'c-laundry': {
-      title: 'Laundry',
+    'c-cupboard': {
+      title: 'The cupboard',
       value: 900,
-      body: 'Sit down with the laundry where you stand. Fifteen minutes. You may fold.',
-      effect: { kind: 'freeze', minutes: 15 },
+      body: 'Something has fallen out and it is now your problem. Lose 500 on the spot.',
+      effect: { kind: 'coins', amount: -500 },
     },
     'c-dishes': {
       title: 'Dishes',
@@ -191,6 +208,7 @@ export const content = {
       body: 'Build a freestanding tower of six books, at least 30cm tall, standing on its own for ten seconds on camera. No tape, nothing leaning, nothing you were already holding.',
     },
     'd1-pen': {
+      tags: ['anywhere'],
       title: 'The pen graveyard',
       evidence: ['video, proven on paper'],
       value: 900,
@@ -212,6 +230,7 @@ export const content = {
       body: 'Flattened, odd, sole departed, found under something. Most thoroughly finished slipper wins.',
     },
     'd1-beige': {
+      tags: ['anywhere'],
       title: 'Beige on purpose',
       evidence: ['photo', 'your defence'],
       value: 700,
@@ -305,6 +324,7 @@ export const content = {
       body: 'Get underneath the largest piece of furniture in the house and photograph what is under there, with the underside visibly above you. Best find wins.',
     },
     'd2-seat': {
+      tags: ['anywhere'],
       title: 'Best seat in the house',
       evidence: ['photo', 'your defence'],
       value: 1000,
@@ -312,6 +332,7 @@ export const content = {
       body: 'Nominate the single best place to sit in this house and defend it. The winning team picks what is on television tonight.',
     },
     'd2-decades': {
+      tags: ['anywhere'],
       title: 'Two decades apart',
       evidence: ['photo from one spot', 'both dates'],
       value: 900,
@@ -333,6 +354,7 @@ export const content = {
       body: 'You may not read the label before eating it. Eat it. Then read it. Weirdest thing successfully eaten wins. Nothing actually off.',
     },
     'd2-gadget': {
+      tags: ['anywhere'],
       title: 'A gadget worth more than a car',
       evidence: ['photo', 'your valuation'],
       value: 700,
@@ -380,6 +402,7 @@ export const content = {
       body: 'Rematch. Freestanding tower at least 40cm tall, ten centimetres more than last time, holding a biscuit at the top for ten seconds. Objects found today.',
     },
     'd3-explain': {
+      tags: ['anywhere'],
       title: 'Something you cannot explain',
       evidence: ['photo'],
       value: 1400,
@@ -394,6 +417,7 @@ export const content = {
       body: 'Take three things from three different drawers, none of them a drawer you have already opened today. Best three wins.',
     },
     'd3-best': {
+      tags: ['anywhere'],
       title: 'Ask for the best thing in this room',
       evidence: ['who you asked', 'photo of the outcome'],
       value: 900,
@@ -474,7 +498,7 @@ export const content = {
         { kind: 'card', id: 'd1-tower' },
         { kind: 'card', id: 'd1-pen' },
         { kind: 'card', id: 'd1-chair' },
-        { kind: 'curse', id: 'c-laundry' },
+        { kind: 'curse', id: 'c-cupboard' },
         { kind: 'card', id: 'd1-slipper' },
         { kind: 'card', id: 'd1-beige' },
         { kind: 'card', id: 'd1-magnets' },
@@ -510,7 +534,7 @@ export const content = {
         { kind: 'card', id: 'd2-fridge' },
         { kind: 'card', id: 'd2-gadget' },
         { kind: 'card', id: 'd2-shelf' },
-        { kind: 'curse', id: 'c-laundry' },
+        { kind: 'curse', id: 'c-cupboard' },
         { kind: 'card', id: 'd2-remotes' },
         { kind: 'card', id: 'd2-towels' },
       ],

@@ -339,6 +339,7 @@ function fireCurse(day, team, absIndex, entry, nowEpoch, atGameMinutes) {
   if (converted) return;
 
   const e = curse.effect;
+  // 'coins' and 'toll' are settled at scoring. Nothing about them costs time.
   if (e.kind === 'freeze') {
     team.freezeUntil = nowEpoch + realMsForGameMinutes(e.minutes);
   } else if (e.kind === 'blank') {
@@ -596,6 +597,30 @@ export function setEvidence(state, day, side, cardId, item, on) {
   return { ok: true };
 }
 
+// What you saw, in your words. The point of the day is not the coins, and this
+// is the bit still worth having in a year.
+export function setNote(state, day, side, cardId, text) {
+  const ds = ensureDay(state, day);
+  const entry = ds.teams[side].done.find((d) => d.cardId === cardId);
+  if (!entry) return { ok: false, why: 'That card is not done yet.' };
+  entry.note = String(text || '').slice(0, 400);
+  return { ok: true };
+}
+
+export function isAnywhere(card) {
+  return (card.tags || []).includes('anywhere');
+}
+
+// A card in hand you can do on a train or in a queue, if there is one.
+export function anywhereInHand(day, team, nowEpoch = Date.now()) {
+  const hand = activeHand(team, nowEpoch);
+  const at = hand.findIndex((i) => {
+    const entry = day.sequence[i];
+    return entry.kind === 'card' && isAnywhere(content.cards[entry.id]);
+  });
+  return at < 0 ? null : at;
+}
+
 export function evidenceFor(team, cardId) {
   return (team.evidence || {})[cardId] || {};
 }
@@ -777,7 +802,12 @@ export function scoreTeam(day, dayState, side, state, nowEpoch = Date.now()) {
       continue;
     }
     const e = curse.effect;
-    if (e.kind === 'toll') {
+    if (e.kind === 'coins') {
+      lines.push({
+        label: `${curse.title} — paid`, value: e.amount,
+        note: 'on the spot', loss: e.amount < 0, curse: true,
+      });
+    } else if (e.kind === 'toll') {
       lines.push({ label: `${curse.title} — paid`, value: -e.amount, note: `to the other team`, loss: true, curse: true });
     } else if (e.kind === 'drain' && capped != null) {
       const elapsed = Math.max(0, Math.min(capped - rec.gameAt, e.minutes));
@@ -836,7 +866,7 @@ export function scoreTeam(day, dayState, side, state, nowEpoch = Date.now()) {
     }
   }
 
-  if (team.swept) {
+  if (team.swept && content.rules.cleanSweepBonus) {
     lines.push({ label: 'Clean sweep', value: content.rules.cleanSweepBonus, note: 'deck cleared' });
   }
 

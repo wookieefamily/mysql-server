@@ -452,3 +452,17 @@ label.file input[type='file'] {
   border: 2px solid var(--rule-hard); background: var(--paper-deep); color: var(--ink);
 }
 .handrow .num { font-size: 22px; white-space: nowrap; }
+
+/* A plain chip for tags that are information rather than a category. */
+.chip.plain { background: var(--paper); color: var(--ink); box-shadow: none; }
+
+/* What you found, in your words. The reason the day sheet exists. */
+.found {
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.4;
+  margin: 10px 0 0;
+  padding-left: 11px;
+  border-left: 3px solid var(--green);
+  color: var(--ink);
+}

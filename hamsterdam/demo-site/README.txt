@@ -6,18 +6,40 @@ real deck is not in this folder, this deployment, or anywhere a browser can
 reach from here.
 
 
+WHAT IT IS FOR
+--------------
+
+A way to spend a day in a city seeing things you would not otherwise have seen,
+eating things you would not otherwise have ordered, and talking to people you
+would not otherwise have spoken to — with just enough competition to make you
+actually do it.
+
+It is not a race and it is not really about winning. Three things follow from
+that, and they are built into the app:
+
+  Nothing ever costs you time. No mechanic makes you stand still and wait.
+  There is no prize for clearing the deck. Going deep on one card beats
+    rushing through six.
+  The score is out of sight until dinner. You are not carrying a scoreboard
+    around Amsterdam.
+
+What you ARE carrying is a record. Every card you finish takes a photo and a
+line about what it actually was, and the day sheet becomes the thing you look
+back at.
+
+
 THE WHOLE GAME, IN FIVE SENTENCES
 ---------------------------------
 
 You hold three cards. Do one and the next arrives.
 Don't fancy one? Skip it — you get three skips a day and no more.
-Some cards say BOTH TEAMS. Those are settled at dinner: the better one takes
+Some cards say BOTH TEAMS. Those get compared at dinner: the better one takes
 the lot, the other takes a quarter.
-One draw in six is a curse. Take the coins, then pay.
-The whistle ends play. Dinner decides who won.
+One draw in six is a curse. Take the coins, then pay some back.
+The whistle ends play. The numbers come out at dinner.
 
-That is everything. There is nothing else to remember, and the app keeps the
-score for you.
+Cards marked ANYWHERE need no particular place — do them on a train, in a
+queue, at a table. When you are stuck waiting, the app offers you one.
 
 
 HOW TO PUT IT ONLINE
@@ -56,25 +78,26 @@ THE ELEVEN THINGS TO PROVE
     it — you have three a day, and when they are gone the button dies.
 
  4. A CURSE FIRES
-    Keep going. A curse arrives on its own, printed white on black, and the
-    black NOW bar tells you exactly what it costs you.
+    Keep going. A curse arrives on its own, printed white on black. It takes
+    coins and then gives some back, and it never costs you a minute.
 
  5. BOTH TEAMS HOLD, THEN SETTLE
     Do a BOTH TEAMS card on both teams. In play it reads "to settle at dinner".
     Open DINNER: both claims sit side by side with the photos. Pick a winner.
     Winner takes the full value, the other takes a quarter.
 
- 6. CAMERA
-    Tap PHOTO. Your phone should open the CAMERA, not the photo library. Take
-    one. It appears on the card, and on your partner's phone.
+ 6. CAMERA AND A LINE
+    Tap PHOTO. Your phone should open the CAMERA, not the photo library. Then
+    finish a card and it asks you for one line about what it was. Both land on
+    DAY SHEET, which is the record of the day rather than a column of coins.
 
  7. FOUR PHONES AGREE
     Change something on one phone. Within a couple of seconds the other three
     show the same coins, cards and photos.
 
- 8. CLEAN SWEEP
-    Clear an entire deck before the whistle. Play stops for that team, the
-    score banks and 1,500 lands. Day Three is the quickest deck to clear.
+ 8. CLEARING THE DECK
+    Clear an entire deck before the whistle. Play stops for that team. There is
+    no bonus — it used to pay 1,500, which was a prize for rushing.
 
  9. THE WHISTLE
     Let the clock reach the whistle. Play ends and dinner is what is left.
@@ -139,6 +162,8 @@ work than fun are switched off there, not deleted:
   evidence           per-card tick lists
   attempts           limited tries on a card
   lateCurseConversion  curses drawn late costing coins instead of time
+  liveScores         a running head-to-head total during the day
+  notes              a line about each card (on by default)
 
 Set one back to true and it returns. Nothing was thrown away.
 
