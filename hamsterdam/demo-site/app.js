@@ -126,7 +126,8 @@ function handStrip(day, hand, focusAt) {
   return `<div class="alsohand">
     <div class="k">Also in hand — tap to bring forward</div>
     ${others.map(({ i, n }) => {
-      const card = content.cards[day.sequence[i].id];
+      const card = E.cardById(day.sequence[i].id);
+      if (!card) return '';
       return `<button class="handrow" data-act="focus" data-n="${n}">
         <span>${esc(card.title)}</span><span class="num">${coins(card.value)}</span>
       </button>`;
@@ -136,7 +137,8 @@ function handStrip(day, hand, focusAt) {
 
 function cardMarkup(state, day, dayState, side, absIndex) {
   const entry = day.sequence[absIndex];
-  const card = content.cards[entry.id];
+  const card = E.cardById(entry.id);
+  if (!card) return '';
   const team = dayState.teams[side];
   const now = Date.now();
   const ended = E.isAfterWhistle(day, dayState, now);
@@ -188,7 +190,8 @@ function cardMarkup(state, day, dayState, side, absIndex) {
 }
 
 function curseMarkup(day, rec) {
-  const curse = content.curses[rec.curseId];
+  const curse = E.curseById(rec.curseId);
+  if (!curse) return '';
   const e = curse.effect;
   const band = `Curse${e.minutes ? ` · ${e.minutes} min` : ''}`;
   return `
@@ -424,6 +427,24 @@ function screenPlay(state, day, dayState) {
     return `${daySwitcher(state)}<div class="notice"><span class="k">Not on a team</span>
       You are not on a team for ${esc(day.label)}. Flip for the pairing on the start screen.</div>`;
   }
+  if (dayState.deckChanged) {
+    return `
+    ${masthead(state, day)}
+    ${daySwitcher(state)}
+    <div class="now warn"><span class="k">Deck changed</span>
+      <span class="t">The cards were edited while this day was running.</span></div>
+    <div class="block">
+      <p class="note">A hand is a list of positions in the deck, so once the deck
+      changes those positions point somewhere else. Rather than deal somebody the
+      wrong card, ${esc(day.label)} needs starting again. The other days are fine.</p>
+      <div style="margin-top:14px">
+        <button class="big primary" data-act="resetday">Start ${esc(day.label)} over</button>
+      </div>
+      <p class="note center" style="margin-top:10px">Editing a card's <em>words</em> never
+      does this. Only adding, removing or reordering cards does.</p>
+    </div>`;
+  }
+
   const team = dayState.teams[side];
   const ended = E.isAfterWhistle(day, dayState, now);
   const recentCurse = team.curses.length ? team.curses[team.curses.length - 1] : null;
@@ -467,7 +488,8 @@ function screenPlay(state, day, dayState) {
 // The day sheet: what has actually happened, in the order it happened.
 function recordCard(day, state, entry, kind, ordinals, total, verdicts) {
   if (kind === 'curse') {
-    const curse = content.curses[entry.curseId];
+    const curse = E.curseById(entry.curseId);
+    if (!curse) return '';
     return `<article class="card curse">
       <div class="slug"><span>Drawn ${esc(E.formatHM(entry.gameAt))}</span><span>Curse</span></div>
       <div class="typebar"><span class="chip signal">Curse${entry.converted ? ' · late' : ''}</span></div>
@@ -478,7 +500,8 @@ function recordCard(day, state, entry, kind, ordinals, total, verdicts) {
     </article>`;
   }
 
-  const card = content.cards[entry.cardId];
+  const card = E.cardById(entry.cardId);
+  if (!card) return '';
   const versus = E.isVersus(card);
   const verdict = verdicts[entry.cardId];
   let stamp = 'Completed';
@@ -891,7 +914,7 @@ document.addEventListener('click', async (ev) => {
     // Ask while it is still in your head. Optional — cancel and it is skipped,
     // and it can always be added later from the day sheet.
     if (E.feature('notes')) {
-      const line = prompt(`${content.cards[cardId].title}\n\nA line about it? What was it, what happened. Leave blank to skip.`);
+      const line = prompt(`${(E.cardById(cardId) || {}).title || ''}\n\nA line about it? What was it, what happened. Leave blank to skip.`);
       if (line && line.trim()) {
         await act(() => Net.mutate((draft) => E.setNote(draft, day, side, cardId, line.trim())));
       }
@@ -902,7 +925,7 @@ document.addEventListener('click', async (ev) => {
   if (action === 'note') {
     const cardId = el.dataset.card;
     const existing = (state.days[day.id].teams[side].done.find((d) => d.cardId === cardId) || {}).note || '';
-    const line = prompt(`${content.cards[cardId].title}\n\nA line about it?`, existing);
+    const line = prompt(`${(E.cardById(cardId) || {}).title || ''}\n\nA line about it?`, existing);
     if (line === null) return;
     await act(() => Net.mutate((draft) => E.setNote(draft, day, side, cardId, line.trim())));
     return;
@@ -910,7 +933,7 @@ document.addEventListener('click', async (ev) => {
   if (action === 'skip') {
     const i = Number(el.dataset.i);
     const left = E.skipsLeft(state.days[day.id], side);
-    if (!confirm(`Skip ${content.cards[day.sequence[i].id].title}?\n\nYou have ${left} skip${left === 1 ? '' : 's'} left today.`)) return;
+    if (!confirm(`Skip ${(E.cardById(day.sequence[i].id) || {}).title || 'this card'}?\n\nYou have ${left} skip${left === 1 ? '' : 's'} left today.`)) return;
     focusAt = 0;
     await act(() => Net.mutate((draft) => E.skipCard(draft, day, side, i, me, Date.now())));
     return;

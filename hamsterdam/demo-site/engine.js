@@ -90,7 +90,7 @@ export const feature = (name) => !!(content.features && content.features[name]);
 // later one once it has been found. The flag stores the day it was found on,
 // so nobody has to remember at breakfast.
 export function isRemoved(cardId, day, flags) {
-  const card = content.cards[cardId];
+  const card = cardById(cardId);
   if (!card || !card.linkedFlag) return false;
   const foundOn = flags && flags[card.linkedFlag];
   return typeof foundOn === 'number' && foundOn < day.id;
@@ -127,7 +127,19 @@ export function newTeamState(offset) {
 }
 
 // Bumped whenever the stored shape gains a field. See migrateState.
-export const SCHEMA = 2;
+export const SCHEMA = 3;
+
+// Stored state holds positions in the deck and ids from content. Editing a
+// card's words is harmless; changing the deck's composition or order is not,
+// because a hand is a list of positions. This fingerprint tells the two apart:
+// it only changes when the deck itself does.
+export function deckSignature(day) {
+  return day.sequence.map((e) => `${e.kind}:${e.id}`).join('|');
+}
+
+// Never assume an id stored yesterday still exists in today's content.
+export const cardById = (id) => content.cards[id] || null;
+export const curseById = (id) => content.curses[id] || null;
 
 export function newState() {
   return {
@@ -180,6 +192,18 @@ export function migrateState(state) {
     }
     delete ds.findMy;
 
+    // If the deck itself changed under a day that is already running, the hand
+    // positions stored here point at different cards than they did. Say so
+    // rather than dealing somebody the wrong card.
+    const def = dayDef(key);
+    if (def && ds.startedAt) {
+      ds.deckChanged = ds.deckSig !== deckSignature(def);
+    }
+
+    for (const cardId of Object.keys(ds.dinner.verdicts)) {
+      if (!cardById(cardId)) delete ds.dinner.verdicts[cardId];
+    }
+
     ds.teams = ds.teams || {};
     for (const side of SIDES) {
       const t = ds.teams[side] || (ds.teams[side] = newTeamState(0));
@@ -187,6 +211,19 @@ export function migrateState(state) {
         if (!Array.isArray(t[list])) t[list] = [];
       }
       if (!t.evidence || typeof t.evidence !== 'object') t.evidence = {};
+
+      // A content swap can remove a card or a curse that this document still
+      // refers to. Drop those rather than letting a lookup return undefined
+      // and take the whole screen down with it.
+      for (const list of ['done', 'vetoed', 'failed', 'discarded']) {
+        t[list] = t[list].filter((r) => r && cardById(r.cardId));
+      }
+      t.curses = t.curses.filter((r) => r && curseById(r.curseId));
+      t.attemptLog = t.attemptLog.filter((r) => r && cardById(r.cardId));
+      if (t.position && !cardById(t.position.cardId)) t.position = null;
+      for (const cardId of Object.keys(t.evidence)) {
+        if (!cardById(cardId)) delete t.evidence[cardId];
+      }
       if (typeof t.offset !== 'number') t.offset = 0;
       if (typeof t.drawn !== 'number') t.drawn = t.hand.length;
       // Older entries in standing logs have no id; give them one so the
@@ -394,6 +431,7 @@ export function startDay(state, day, nowEpoch = Date.now()) {
   if (ds.startedAt) return ds;                      // already started, do nothing
   ds.startedAt = nowEpoch;
   ds.startMinutes = startMinutesNow(nowEpoch);
+  ds.deckSig = deckSignature(day);
   for (const side of SIDES) refill(day, ds, side, state.flags, nowEpoch);
   return ds;
 }
@@ -616,7 +654,7 @@ export function anywhereInHand(day, team, nowEpoch = Date.now()) {
   const hand = activeHand(team, nowEpoch);
   const at = hand.findIndex((i) => {
     const entry = day.sequence[i];
-    return entry.kind === 'card' && isAnywhere(content.cards[entry.id]);
+    return entry.kind === 'card' && cardById(entry.id) && isAnywhere(cardById(entry.id));
   });
   return at < 0 ? null : at;
 }
@@ -630,7 +668,7 @@ export function evidenceFor(team, cardId) {
 // One function, used by the card and by the ledger, so the number on the card
 // and the number in the ledger can never disagree.
 export function cardPayout(day, dayState, side, cardId, opts = {}) {
-  const card = content.cards[cardId];
+  const card = cardById(cardId) || { value: 0, type: 'SOLO', tags: [] };
   const team = dayState.teams[side];
   const versus = isVersus(card);
   // For a completed card the halving is whatever was true at completion; for a
@@ -705,7 +743,8 @@ export function positionOutcome(dayState, side, day, nowEpoch = Date.now()) {
   const team = dayState.teams[side];
   if (!team.position) return null;
   const pos = team.position;
-  const card = content.cards[pos.cardId];
+  const card = cardById(pos.cardId);
+  if (!card) return null;
   const completed = team.done.some((d) => d.i === pos.i);
   if (!completed) {
     return isAfterWhistle(day, dayState, nowEpoch)
@@ -731,7 +770,8 @@ export function scoreTeam(day, dayState, side, state, nowEpoch = Date.now()) {
   const posOutcome = positionOutcome(dayState, side, day, nowEpoch);
 
   for (const entry of team.done) {
-    const card = content.cards[entry.cardId];
+    const card = cardById(entry.cardId);
+    if (!card) continue;
     // Same function the card itself prints from.
     const pay = cardPayout(day, dayState, side, entry.cardId, { half: entry.half });
     const notes = [];
@@ -769,8 +809,9 @@ export function scoreTeam(day, dayState, side, state, nowEpoch = Date.now()) {
   }
 
   for (const entry of team.failed || []) {
+    if (!cardById(entry.cardId)) continue;
     lines.push({
-      label: content.cards[entry.cardId].title,
+      label: cardById(entry.cardId).title,
       value: 0,
       note: 'out of attempts — no penalty',
     });
@@ -789,7 +830,8 @@ export function scoreTeam(day, dayState, side, state, nowEpoch = Date.now()) {
   const capped = clock == null ? null : Math.min(clock, whistleMinutes(day));
 
   for (const rec of team.curses) {
-    const curse = content.curses[rec.curseId];
+    const curse = curseById(rec.curseId);
+    if (!curse) continue;
     lines.push({ label: curse.title, value: curse.value, note: 'curse', curse: true });
 
     if (rec.converted) {
@@ -889,8 +931,8 @@ export function pendingVersus(day, dayState) {
   const seen = new Set();
   for (const side of SIDES) {
     for (const entry of dayState.teams[side].done) {
-      const card = content.cards[entry.cardId];
-      if (!isVersus(card) || seen.has(entry.cardId)) continue;
+      const card = cardById(entry.cardId);
+      if (!card || !isVersus(card) || seen.has(entry.cardId)) continue;
       seen.add(entry.cardId);
       out.push({
         cardId: entry.cardId,

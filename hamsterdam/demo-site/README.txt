@@ -167,6 +167,21 @@ work than fun are switched off there, not deleted:
 
 Set one back to true and it returns. Nothing was thrown away.
 
+EDITING WHILE A DAY IS RUNNING
+Fixing a typo, a value or a card's wording is safe at any time — the day
+carries on and nobody notices. What is not safe is changing WHICH cards are in
+a day: adding one, removing one, reordering them, or renaming an id. The four
+phones are holding positions in that deck, so after such a change the position
+they hold no longer means what it did.
+
+The app checks for this rather than trusting you. Each day records the deck it
+was dealt from; if that no longer matches, play stops on a screen that says
+"Deck changed" and offers to start the day over. It will not quietly deal you
+somebody else's card.
+
+So: edit text freely mid-day. Change the line-up between days, or start the day
+over after you do.
+
 
 WHAT IS IN HERE
 ---------------
