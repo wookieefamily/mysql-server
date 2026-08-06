@@ -601,11 +601,13 @@ function screenLedger(state, day, dayState) {
   ${content.allowReset ? `
   <div class="block">
     <div class="label">Start over</div>
-    <p class="note">Shared with all four phones. Use it if a demo run gets into a
-    state you want out of.</p>
+    <p class="note">Shared with all four phones. Your way out if a day gets into
+    a state nobody wants.</p>
     <div class="btn-row" style="margin-top:12px">
       <button class="small grow danger" data-act="resetday">Start ${esc(day.label)} over</button>
-      <button class="small grow danger" data-act="resetall">Clear everything</button>
+      ${content.allowResetAll
+        ? '<button class="small grow danger" data-act="resetall">Clear everything</button>'
+        : ''}
     </div>
   </div>` : ''}`;
 }
@@ -888,6 +890,9 @@ document.addEventListener('click', async (ev) => {
     return;
   }
   if (action === 'resetall') {
+    // Guarded here as well as in the markup. A wipe of all three days is not
+    // something a stray tap on a stale screen should be able to reach.
+    if (!content.allowResetAll) return;
     if (!confirm('Clear everything on all four phones?\n\nAll three days, every score and every photo reference.')) return;
     await act(() => Net.mutate((draft) => E.resetAll(draft)));
     tab = 'play';

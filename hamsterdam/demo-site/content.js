@@ -49,11 +49,17 @@ export const content = {
     notes: true,
   },
 
-  // Escape hatches on the day sheet: start a day over, or clear everything.
-  // True for the demo so a run that gets into a strange state can be cleared
-  // without anybody's help. The real build sets this false — nobody should be
-  // able to wipe a real afternoon with a mis-tap.
+  // Two escape hatches on the day sheet, separately switchable.
+  //
+  //   allowReset     "Start this day over" — today only, other days untouched.
+  //                  On in both builds. Being stuck at eleven in the morning
+  //                  with no way out is worse than the risk of a mis-tap.
+  //   allowResetAll  "Clear everything" — all three days, every score, every
+  //                  photo. On in the demo so a strange run can be cleared
+  //                  without anybody's help. OFF in the real build: nobody
+  //                  should be able to wipe three days with one tap.
   allowReset: true,
+  allowResetAll: true,
 
   // null = no password, open straight on the player picker.
   // The real build turns the gate on by putting a word here. Nothing else changes.
