@@ -6,6 +6,20 @@ real deck is not in this folder, this deployment, or anywhere a browser can
 reach from here.
 
 
+THE WHOLE GAME, IN FIVE SENTENCES
+---------------------------------
+
+You hold three cards. Do one and the next arrives.
+Don't fancy one? Skip it — you get three skips a day and no more.
+Some cards say BOTH TEAMS. Those are settled at dinner: the better one takes
+the lot, the other takes a quarter.
+One draw in six is a curse. Take the coins, then pay.
+The whistle ends play. Dinner decides who won.
+
+That is everything. There is nothing else to remember, and the app keeps the
+score for you.
+
+
 HOW TO PUT IT ONLINE
 --------------------
 
@@ -20,150 +34,128 @@ netlify/functions/ is already bundled with esbuild and has zero dependencies,
 which is the only way it can work on a drag-and-drop deploy — those never run
 npm install.
 
-Nothing else needs configuring. The shared store is created on first write.
 
-
-THE TEN THINGS TO PROVE
------------------------
-
-Run these on the phones, in demo mode, before the trip. If they pass, the real
-morning is just pressing start.
+THE ELEVEN THINGS TO PROVE
+--------------------------
 
  1. LOAD AND IDENTIFY
-    All four phones open the URL. Each picks a different player. The name
-    sticks on that phone.
+    All four phones open the URL. Each picks a different player.
 
  2. TEAMS
-    Tap FLIP FOR DAY ONE. All four phones see the same result at the same
-    moment, and it cannot be re-rolled.
+    Tap FLIP FOR DAYS ONE AND TWO. All four phones see the same result and it
+    cannot be re-rolled. Day Three is fixed at Parents vs Kids.
 
-    Four players make exactly three ways to split into two pairs. Day Three is
-    fixed at Parents vs Kids, so the other two pairings fall on Days One and
-    Two — which means across the three days each of you partners each of the
-    other three exactly once. The only thing the flip decides is which of those
-    two comes first. The table shows all three days at once so you can see it.
+    Four players make exactly three ways to split into two pairs, and Day Three
+    takes one of them — so across the three days each of you partners each of
+    the other three exactly once. The flip only decides which pairing comes
+    first. Open "How the pairings work" to see all three days at once.
 
-    (If you would rather flip a real coin at the table, there is a "set it by
-    hand" control underneath.)
-
- 3. DEAL, COMPLETE, VETO, FREEZE
-    Press START DAY. Three cards deal. Complete one and the next arrives. Veto
-    one: you freeze for ten demo minutes — 100 real seconds on this clock — and
-    the next card will not come until it clears.
-
-    AUTO-VETO cards have no veto button. They have FAILED ATTEMPT instead, with
-    tally marks counting down. When the last attempt goes, the card closes
-    itself and the next one comes — no penalty, which is what AUTO-VETO means.
+ 3. DEAL, DO, SKIP
+    Press START DAY. One card sits in front of you, the other two are one tap
+    away underneath. DID IT completes it and the next arrives. SKIP passes on
+    it — you have three a day, and when they are gone the button dies.
 
  4. A CURSE FIRES
-    Keep completing. A curse arrives on its own, printed white on black. It
-    pays its coins and applies its penalty.
+    Keep going. A curse arrives on its own, printed white on black, and the
+    black NOW bar tells you exactly what it costs you.
 
- 5. THE POSITION
-    Declare a card in hand as your Position. It locks for the day. Declared
-    before your second completion it is a triple; after, a double. It will not
-    let you name a card you have already completed.
+ 5. BOTH TEAMS HOLD, THEN SETTLE
+    Do a BOTH TEAMS card on both teams. In play it reads "to settle at dinner".
+    Open DINNER: both claims sit side by side with the photos. Pick a winner.
+    Winner takes the full value, the other takes a quarter.
 
- 6. VERSUS HOLDS, THEN SETTLES
-    Complete a VERSUS card on both teams. In play it reads "pending" — it
-    cannot be settled in the street. Open Dinner: both claims sit side by side.
-    Pick a winner. The winner takes the full value, the loser a quarter, or a
-    third if it was the TIME SINK.
+ 6. CAMERA
+    Tap PHOTO. Your phone should open the CAMERA, not the photo library. Take
+    one. It appears on the card, and on your partner's phone.
 
- 7. CAMERA
-    Tap PHOTO on a card. Your phone should open the CAMERA, not the photo
-    library. Take one. It appears on the card, and on the other phones.
-
- 8. FOUR PHONES AGREE
+ 7. FOUR PHONES AGREE
     Change something on one phone. Within a couple of seconds the other three
-    show the same coins, the same cards and the same photos.
+    show the same coins, cards and photos.
 
- 9. CLEAN SWEEP
+ 8. CLEAN SWEEP
     Clear an entire deck before the whistle. Play stops for that team, the
-    score banks, and 1,500 lands. Day Three is the quickest deck to clear.
+    score banks and 1,500 lands. Day Three is the quickest deck to clear.
 
-10. THE WHISTLE
-    Let the clock reach the whistle. Play ends, the controls go, and dinner is
-    what is left.
+ 9. THE WHISTLE
+    Let the clock reach the whistle. Play ends and dinner is what is left.
+
+10. START OVER
+    At the foot of DAY SHEET, "Start this day over" clears today for all four
+    phones. Confirm it works, because it is your way out of anything.
+
+11. REDEPLOY MID-GAME
+    Start a day, do a few cards, then drag the folder onto Netlify again while
+    the day is running and reload all four phones. Play should continue with
+    the score, cards and photos intact. This is the one that matters most: it
+    is what every future update to the app actually does.
 
 The demo clock runs at one demo minute per ten real seconds, so a full day
-plays through in about half an hour. Day Three is about 35 minutes; Day Two,
-about 30.
+plays through in about half an hour.
 
 
 READING A CARD
 --------------
 
-  No. 4 of 14     where you are in the deck
-  Coloured band   what kind of card it is, readable at arm's length:
-                  VERSUS black, SOLO green, BUILD blue, TIME SINK ochre,
-                  CURSE inverted
-  The big number  what it is worth TO YOU right now — halved if a curse has
-                  halved it, not the number originally printed
-  WIN / LOSE      a VERSUS pays the winner in full and the loser a quarter,
-                  or a third if it is the TIME SINK
-  EVIDENCE        what you still owe before you tap Complete. Tick as you go.
-                  It never blocks Complete — you are the authority, not the app
-  Opponent line   on Days One and Two only, whether the other team has already
-                  banked this card. Day Three hides it, because you are on the
-                  same ground and bluffing is allowed
+  No. 4 of 14      where you are in the deck
+  Coloured band    BOTH TEAMS (black) or JUST DO IT (green). THE BIG ONE in
+                   ochre means it is worth a lot and will eat an afternoon
+  The big number   what it is worth TO YOU right now — halved if a curse has
+                   halved it, not the number originally printed
+  The green line   what the card means, in a sentence
+  WIN / LOSE       on a contested card, what each outcome pays
 
-The black bar under the clock — NOW — always says the single most useful thing:
-what you are frozen by, what a curse has done to you, or that the Position is
-still open at ×3 and how many completions are left before it drops to ×2.
+The black NOW bar always says the single most useful thing: what a curse has
+done to you, how many skips are left, or that the whistle has gone.
 
-DAY SHEET is the record of what has happened, newest last, stamped COMPLETED,
-PENDING, WON, LOST, VETOED or BEAT YOU, with the coin count underneath.
+DAY SHEET is the record so far, stamped DONE, PENDING, WON, LOST or SKIPPED.
 
 
-CHANGING THE CARDS
-------------------
+IF SOMETHING GOES WRONG
+-----------------------
 
-Every card, value, curse, whistle time, zone rule and day definition is in
-content.js. Nothing else contains any of it.
+At the foot of DAY SHEET, shared with all four phones:
 
-To change content: edit content.js, save, and drag the folder onto Netlify
-again. That is the whole procedure. No code changes, and the function does not
-need rebuilding.
+  Start this day over    clears today only, leaves the other days alone
+  Clear everything       wipes all three days back to new
 
-The comments at the top of content.js explain the shape. The draw order,
-including exactly where the curses sit, is the `sequence` array on each day.
-Deck sizes and the number of days are read from those arrays — nothing is
-hardcoded.
+If a screen ever fails to draw, the app shows what went wrong with a RELOAD
+button rather than freezing. Nothing is lost — the score lives on the server,
+not on the phone.
+
+
+CHANGING THE CARDS, OR THE RULES
+--------------------------------
+
+Everything is in content.js. Edit it, save, drag the folder onto Netlify again.
+No code changes.
+
+Near the top there is a `features` block. Rules that were cut for being more
+work than fun are switched off there, not deleted:
+
+  position           name a card, double or nothing
+  standingMechanics  the four per-player counters
+  findMy             300 a look, logged
+  zones              opening zones that expire
+  evidence           per-card tick lists
+  attempts           limited tries on a card
+  lateCurseConversion  curses drawn late costing coins instead of time
+
+Set one back to true and it returns. Nothing was thrown away.
 
 
 WHAT IS IN HERE
 ---------------
 
   index.html    the shell
-  content.js    ALL content. The only file to edit for a content change.
-  engine.js     the rules. No card text lives here.
-  net.js        shared state across the four phones, and photo upload.
+  content.js    ALL content and rules. The only file to edit.
+  engine.js     the rules engine. No card text lives here.
+  net.js        shared state across four phones, and photo upload.
   app.js        the screens.
   ledger.css    the look.
   netlify.toml  tells Netlify where the function is. Leave it alone.
   netlify/functions/state.mjs
                 the shared store. Pre-bundled, zero dependencies. Generated —
-                do not edit it by hand.
-
-
-IF SOMETHING GOES WRONG
------------------------
-
-At the foot of DAY SHEET there are two controls, shared with all four phones:
-
-  Start this day over    clears today only, leaves the other days alone
-  Clear everything       wipes all three days back to new
-
-Both ask before they do anything. They exist so a demo run that gets into a
-state you want out of can be cleared without anybody's help.
-
-If a screen ever fails to draw, the app shows what went wrong with a RELOAD
-button rather than freezing. Nothing is lost when that happens — the score lives
-on the server, not on the phone, so reloading picks it back up.
-
-(The real build turns these controls off, by setting allowReset to false in
-content.js. Nobody should be able to wipe a real afternoon with a mis-tap.)
+                do not edit by hand.
 
 
 NOTES
@@ -172,9 +164,8 @@ NOTES
 Online only, by design. If a phone loses signal it says so and stops saving;
 when signal returns it catches up by itself.
 
-The four phones share one state. Two people on the same team both tapping
-"complete" on the same card is safe — the second tap is recognised as the same
-action, not a second one.
+Two people on the same team both tapping DID IT on the same card is safe — the
+second tap is recognised as the same action, not a second one.
 
 No date locks, no device checks, no timezone logic. If you press start, it
 starts.

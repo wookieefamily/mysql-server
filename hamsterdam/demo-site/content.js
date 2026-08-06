@@ -26,6 +26,22 @@ export const content = {
   siteTitle: 'HAMSTERDAM — DEMO',
   banner: 'DEMO · HOUSEHOLD CHORES · NOT THE REAL GAME',
 
+  // -- What is switched on ---------------------------------------------------
+  // The game got complicated because every rule was clever on its own. These
+  // turn whole rules off. Anything false here is not just hidden — it is not
+  // scored, not shown, and not something anybody has to remember.
+  //
+  // Flip one back to true and it returns, so nothing is lost by simplifying.
+  features: {
+    position: false,           // name a card, double or nothing
+    standingMechanics: false,  // the four per-player counters
+    findMy: false,             // 300 a look, logged
+    zones: false,              // opening zones that expire
+    evidence: false,           // per-card tick lists
+    attempts: false,           // AUTO-VETO attempt tallies
+    lateCurseConversion: false,// curses drawn late costing coins not time
+  },
+
   // Escape hatches on the day sheet: start a day over, or clear everything.
   // True for the demo so a run that gets into a strange state can be cleared
   // without anybody's help. The real build sets this false — nobody should be
@@ -85,29 +101,37 @@ export const content = {
   // Every number the engine uses. None of these appear anywhere else.
   rules: {
     handSize: 3,
-    vetoFreezeMinutes: 10,      // game minutes, frozen, blocks the next draw
-    versusLoserShare: 0.25,     // loser of a VERSUS still banks a quarter
-    timeSinkLoserShare: 1 / 3,  // a third, because ninety minutes for nothing is unrecoverable
-    positionDouble: 2,
-    positionTriple: 3,          // declared before the team's second completion
-    positionFailPenalty: -800,
+    // Skipping used to freeze you for ten minutes, which meant standing in a
+    // street doing nothing. A budget is the same pressure in one sentence,
+    // with no dead time: you get three, spend them well.
+    skipsPerDay: 3,
+    // One share for every contested card. There used to be two, which nobody
+    // could be expected to remember mid-afternoon.
+    loserShare: 0.25,
     cleanSweepBonus: 1500,
-    zoneLiftMinutes: 90,        // after the split, relative to start
-    lateCurseFlatPenalty: -600, // a converted curse pays this instead of costing time
   },
 
   // -- Card types -----------------------------------------------------------
   // Labels and how each type behaves. The UI reads these; it does not know the
   // type names itself.
+  // Two kinds, and neither is jargon. The card says what it means in a
+  // sentence; nobody has to learn a vocabulary.
   cardTypes: {
-    SOLO: { label: 'SOLO', note: 'Fixed value. Both teams can score.', versus: false },
-    VERSUS: { label: 'VERSUS', note: 'Both teams attempt. Winner takes full value, loser a quarter. Settled at dinner.', versus: true },
-    AUTO_VETO: { label: 'AUTO-VETO', note: 'Limited attempts. No penalty for failure.', versus: false },
+    SOLO: {
+      label: 'JUST DO IT',
+      line: 'Both teams can score this one. Just do it.',
+      versus: false,
+    },
+    VERSUS: {
+      label: 'BOTH TEAMS',
+      line: 'Both teams are doing this. The better one wins at dinner.',
+      versus: true,
+    },
   },
 
   // Modifiers a card can carry, shown as a second label.
   cardTags: {
-    timeSink: { label: 'TIME SINK', note: 'Roughly double value. This will openly eat about ninety minutes. Loser takes a third.' },
+    timeSink: { label: 'THE BIG ONE', note: 'Worth a lot, and it will eat most of an afternoon.' },
     build: { label: 'BUILD', note: 'Something to construct.' },
   },
 
@@ -123,54 +147,26 @@ export const content = {
   //   oneCard  — hold only one card for `minutes`
   //   drain    — lose `amount` every `everyMinutes` for `minutes`
   //   blank    — next draw discarded unseen, then a freeze of `minutes`
+  // Three kinds. Each is one sentence, each enforces itself, and the app tells
+  // you exactly what to do when one lands. There used to be eight.
   curses: {
     'c-laundry': {
       title: 'Laundry',
       value: 900,
-      body: 'Sit down with the laundry where you stand. Fifteen minutes. You may fold. No planning, no looking ahead.',
+      body: 'Sit down with the laundry where you stand. Fifteen minutes. You may fold.',
       effect: { kind: 'freeze', minutes: 15 },
     },
     'c-dishes': {
       title: 'Dishes',
       value: 1100,
-      body: 'It is your turn at the sink and it was not going to be. Pay the other team 600, settled at the table.',
+      body: 'It is your turn at the sink and it was not going to be. Pay the other team 600.',
       effect: { kind: 'toll', amount: 600 },
-    },
-    'c-bulb': {
-      title: 'The bulb has gone',
-      value: 900,
-      body: 'Nobody can see anything. No looking anything up for twenty minutes. Labels, memory and shouting through a doorway only.',
-      effect: { kind: 'noMaps', minutes: 20 },
     },
     'c-leftovers': {
       title: 'Leftovers',
       value: 800,
-      body: 'You are eating what is already in there. Your next completed card is worth half.',
+      body: 'You are eating what is already in there. Your next card is worth half.',
       effect: { kind: 'half' },
-    },
-    'c-stairs': {
-      title: 'The stairs',
-      value: 900,
-      body: 'The long way round, every time, for twenty-five minutes. No shortcuts through the kitchen.',
-      effect: { kind: 'onFoot', minutes: 25 },
-    },
-    'c-basket': {
-      title: 'A smaller basket',
-      value: 700,
-      body: 'You cannot carry what you were carrying. For thirty minutes you hold only one card.',
-      effect: { kind: 'oneCard', minutes: 30 },
-    },
-    'c-tap': {
-      title: 'The tap is dripping',
-      value: 1200,
-      body: 'Nobody is going to fix it. Lose 100 coins every five minutes for half an hour. This can take you negative.',
-      effect: { kind: 'drain', amount: 100, everyMinutes: 5, minutes: 30 },
-    },
-    'c-bin': {
-      title: 'The wrong bin',
-      value: 700,
-      body: 'It has already gone out. Your next draw is discarded unseen, then five minutes standing at the kerb.',
-      effect: { kind: 'blank', minutes: 5 },
     },
   },
 
@@ -190,8 +186,7 @@ export const content = {
       title: 'The book tower',
       evidence: ['video, ten seconds'],
       value: 1400,
-      type: 'AUTO_VETO',
-      attempts: 3,
+      type: 'SOLO',
       tags: ['build'],
       body: 'Build a freestanding tower of six books, at least 30cm tall, standing on its own for ten seconds on camera. No tape, nothing leaning, nothing you were already holding.',
     },
@@ -262,8 +257,7 @@ export const content = {
       title: 'The laundry basket landing',
       evidence: ['video of the landing'],
       value: 1200,
-      type: 'AUTO_VETO',
-      attempts: 5,
+      type: 'SOLO',
       body: 'From one metre, throw a rolled pair of socks so it lands in the basket and stays in the basket. Alternate attempts. Put them away either way.',
     },
     'd1-spoon': {
@@ -299,8 +293,7 @@ export const content = {
       title: 'The second tower',
       evidence: ['video, ten seconds'],
       value: 1400,
-      type: 'AUTO_VETO',
-      attempts: 3,
+      type: 'SOLO',
       tags: ['build'],
       body: 'Freestanding tower at least 30cm tall from six or more separate objects found in this house today, unsupported for ten seconds on camera. No tape, nothing leaning.',
     },
@@ -382,8 +375,7 @@ export const content = {
       title: 'The taller tower',
       evidence: ['video, ten seconds'],
       value: 1400,
-      type: 'AUTO_VETO',
-      attempts: 3,
+      type: 'SOLO',
       tags: ['build'],
       body: 'Rematch. Freestanding tower at least 40cm tall, ten centimetres more than last time, holding a biscuit at the top for ten seconds. Objects found today.',
     },
@@ -473,17 +465,10 @@ export const content = {
       demoPlace: 'The house — kitchen and upstairs',
       pairing: 'choice',       // Day 1 takes the chosen pairing
       whistle: '15:30',
-      convertAt: '14:45',      // after this, a curse costs coins instead of time
       offsetB: 0,              // both teams start at the same place in the deck
       // You are apart today, so seeing that they have already banked a card is
       // pressure rather than a leak. Day 3 turns this off.
       showOpponentProgress: true,
-      findMy: { enabled: true, cost: 300, label: 'Check where they are' },
-      zones: {
-        A: 'Upstairs and the landing',
-        B: 'Downstairs and the garden',
-        lifts: 'The whole house opens 90 minutes after the split.',
-      },
       sequence: [
         { kind: 'card', id: 'd1-drawer' },
         { kind: 'card', id: 'd1-tower' },
@@ -495,12 +480,12 @@ export const content = {
         { kind: 'card', id: 'd1-magnets' },
         { kind: 'card', id: 'd1-mugs' },
         { kind: 'card', id: 'd1-coins' },
-        { kind: 'curse', id: 'c-tap' },
+        { kind: 'curse', id: 'c-dishes' },
         { kind: 'card', id: 'd1-cupboard' },
         { kind: 'card', id: 'd1-socks' },
         { kind: 'card', id: 'd1-basket' },
         { kind: 'card', id: 'd1-spoon' },
-        { kind: 'curse', id: 'c-bin' },
+        { kind: 'curse', id: 'c-leftovers' },
         { kind: 'card', id: 'd1-ask' },
       ],
     },
@@ -512,15 +497,8 @@ export const content = {
       demoPlace: 'The house — the cupboards',
       pairing: 'remainder',    // whatever Day 1 did not take
       whistle: '15:00',
-      convertAt: '14:15',
       offsetB: 0,
       showOpponentProgress: true,
-      findMy: { enabled: true, cost: 300, label: 'Check where they are' },
-      zones: {
-        A: 'North of the kettle',
-        B: 'South of the kettle',
-        lifts: 'The whole house opens 90 minutes after the split.',
-      },
       sequence: [
         { kind: 'card', id: 'd2-cupboard' },
         { kind: 'card', id: 'd2-tower' },
@@ -532,7 +510,7 @@ export const content = {
         { kind: 'card', id: 'd2-fridge' },
         { kind: 'card', id: 'd2-gadget' },
         { kind: 'card', id: 'd2-shelf' },
-        { kind: 'curse', id: 'c-basket' },
+        { kind: 'curse', id: 'c-laundry' },
         { kind: 'card', id: 'd2-remotes' },
         { kind: 'card', id: 'd2-towels' },
       ],
@@ -545,22 +523,18 @@ export const content = {
       demoPlace: 'The house — same ground',
       pairing: 'fixed',        // Parents vs Kids
       whistle: '15:30',
-      convertAt: '14:45',
       // Same deck, same order, phase-shifted. Otherwise on a same-ground day
       // both teams stand in the same place all afternoon.
       offsetB: 6,
       // Same ground, interference allowed. Showing their progress would remove
       // everything there is to bluff about.
       showOpponentProgress: false,
-      findMy: { enabled: true, cost: 0, label: 'Check where they are — free today' },
-      zones: null,             // same ground, no split
-      interference: 'Misdirection, decoys, claiming a room first: fair. Flat lies, hiding their things, physical blocking: not.',
       sequence: [
         { kind: 'card', id: 'd3-cupboards' },
         { kind: 'card', id: 'd3-span' },
         { kind: 'card', id: 'd3-explain' },
         { kind: 'card', id: 'd3-junk' },
-        { kind: 'curse', id: 'c-bulb' },
+        { kind: 'curse', id: 'c-leftovers' },
         { kind: 'card', id: 'd3-best' },
         { kind: 'card', id: 'd3-shelf' },
         { kind: 'card', id: 'd3-hooks' },
@@ -569,67 +543,14 @@ export const content = {
         { kind: 'card', id: 'd3-fridge' },
         { kind: 'card', id: 'd3-cushions' },
         { kind: 'card', id: 'd3-spoon' },
-        { kind: 'curse', id: 'c-stairs' },
+        { kind: 'curse', id: 'c-dishes' },
         { kind: 'card', id: 'd3-biscuit' },
       ],
     },
   ],
 
-  // -- Standing mechanics ---------------------------------------------------
-  // Four persistent counters, one per player, tappable from any screen at any
-  // time. They fire opportunistically and must not require opening a card.
-  //
-  // credit: 'own'   -> the team that player is on today
-  //         'other' -> the opposing team
-  // dailyLimit: number of taps allowed per day across all of this mechanic's
-  //             buttons, or null for unlimited.
-  standingMechanics: [
-    {
-      id: 'remote',
-      player: 'greg',
-      title: 'The Remote',
-      note: 'Once a day the team Greg is not on may ask him where the remote is. He answers immediately, with total confidence, no looking.',
-      dailyLimit: 1,
-      buttons: [
-        { id: 'right', label: 'He was right', value: 700, credit: 'own' },
-        { id: 'wrong', label: 'He was wrong', value: 700, credit: 'other' },
-      ],
-    },
-    {
-      id: 'sigh',
-      player: 'jason',
-      title: 'The Sigh Tax',
-      note: 'Each theatrical sigh at the state of a cupboard costs his team 100. Each one that makes somebody else laugh out loud earns 400.',
-      dailyLimit: 1,
-      buttons: [
-        { id: 'sigh', label: 'A sigh', value: -100, credit: 'own' },
-        { id: 'laugh', label: 'Made somebody laugh', value: 400, credit: 'own' },
-      ],
-    },
-    {
-      id: 'weather',
-      player: 'peter',
-      title: 'Weather Facts',
-      note: 'The first time each day he delivers an unsolicited fact about the weather to somebody who did not ask, and gets an audible response.',
-      dailyLimit: 1,
-      buttons: [
-        { id: 'delivered', label: 'Delivered', value: 500, credit: 'own' },
-        { id: 'followup', label: 'They asked a follow-up', value: 1000, credit: 'own' },
-      ],
-    },
-    {
-      id: 'doorbell',
-      player: 'betsy',
-      title: 'The Doorbell',
-      note: 'Whenever somebody asks her where something is, unprompted. Unlimited, any number of times a day. The other three fire once each.',
-      dailyLimit: null,
-      buttons: [
-        { id: 'asked', label: 'Asked, unprompted', value: 600, credit: 'own' },
-      ],
-    },
-  ],
-
   // -- Dinner ---------------------------------------------------------------
+  // Kept: they cost nothing to understand and they are the best part of dinner.
   superlativePrompts: [
     'Most Confident Wrong Answer',
     'Best Unprompted Interaction With A Cupboard',
@@ -638,7 +559,7 @@ export const content = {
     'Finest Sitting Down',
     'Most Dignified Under Curse',
     'Best Use Of A Tea Towel',
-    'Worst Position Taken With Full Information',
+    'Worst Decision Taken With Full Information',
   ],
 
   // -- Standing text --------------------------------------------------------
@@ -646,10 +567,8 @@ export const content = {
   // changes the words too.
   text: {
     noRunning: 'NO RUNNING. Nobody runs, for any card, at any point. No card rewards speed.',
-    positionRule: 'Name one card in your hand. Land it by the whistle to double it. Declare it before your second completion to triple it. Fail and it is 800 against you. A VERSUS Position must be won, not merely completed.',
-    vetoRule: 'A veto costs ten minutes frozen and blocks the next draw until it clears.',
+    skipRule: 'You get three skips a day. Spend them well.',
     curseRule: 'One draw in six is a curse. Take the coins, then pay.',
-    convertRule: 'A curse drawn late keeps its coins, but its time penalty becomes a flat 600 against you.',
     sweepRule: 'Clear every card before the whistle and play stops for you. The score banks and you take 1,500.',
     whistleRule: 'The whistle ends play. Dinner declares the winner, because VERSUS cards cannot be settled in the street.',
     dinnerIntro: 'Every VERSUS card both teams reached, side by side. Pick a winner for each, then declare.',

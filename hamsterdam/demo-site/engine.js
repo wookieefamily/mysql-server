@@ -75,10 +75,16 @@ export function isTimeSink(card) {
   return (card.tags || []).includes('timeSink');
 }
 
+// One share for every contested card. There used to be two — a quarter usually
+// and a third on the big ones — which is exactly the kind of precision nobody
+// can hold in their head in an afternoon. If timeSinkLoserShare ever comes back
+// in content, this honours it again.
 export function loserShare(card) {
-  // Ninety minutes for a quarter would be unrecoverable, so TIME SINK pays more.
-  return isTimeSink(card) ? content.rules.timeSinkLoserShare : content.rules.versusLoserShare;
+  if (isTimeSink(card) && content.rules.timeSinkLoserShare) return content.rules.timeSinkLoserShare;
+  return content.rules.loserShare != null ? content.rules.loserShare : content.rules.versusLoserShare;
 }
+
+export const feature = (name) => !!(content.features && content.features[name]);
 
 // A card carrying a linkedFlag appears on two days and is removed from the
 // later one once it has been found. The flag stores the day it was found on,
@@ -259,7 +265,7 @@ export function zonesLiftAt(dayState) {
 }
 
 export function zonesOpen(day, dayState, nowEpoch = Date.now()) {
-  if (!day.zones) return true;
+  if (!feature('zones') || !day.zones) return true;
   const g = gameNow(dayState, nowEpoch);
   const lift = zonesLiftAt(dayState);
   return g == null || lift == null ? false : g >= lift;
@@ -321,7 +327,8 @@ function fireCurse(day, team, absIndex, entry, nowEpoch, atGameMinutes) {
   // Any curse drawn after the cutoff keeps its coins but its time penalty
   // becomes a flat coin loss. Otherwise it is correct to hope for a curse in
   // the last twenty minutes, and it should never be correct to hope for one.
-  const converted = atGameMinutes >= parseHM(day.convertAt);
+  const converted = feature('lateCurseConversion') && day.convertAt != null
+    && atGameMinutes >= parseHM(day.convertAt);
   team.curses.push({
     i: absIndex,
     curseId: entry.id,
@@ -420,12 +427,23 @@ export function completeCard(state, day, side, absIndex, by, nowEpoch = Date.now
   checkSweep(state, day, side, nowEpoch);
 }
 
-export function vetoCard(state, day, side, absIndex, by, nowEpoch = Date.now()) {
+export function skipsLeft(dayState, side) {
+  const used = dayState.teams[side].vetoed.length;
+  return Math.max(0, (content.rules.skipsPerDay || 0) - used);
+}
+
+// Skipping used to freeze the team for ten minutes, which meant standing in a
+// street waiting for a timer. A budget costs the same — you cannot skip your way
+// to the cards you fancy — without any dead time, and it is one sentence long.
+export function skipCard(state, day, side, absIndex, by, nowEpoch = Date.now()) {
   const ds = ensureDay(state, day);
   const team = ds.teams[side];
-  if (team.vetoed.some((v) => v.i === absIndex)) return;
-  if (!team.hand.includes(absIndex)) return;
-  if (isAfterWhistle(day, ds, nowEpoch)) return;
+  if (team.vetoed.some((v) => v.i === absIndex)) return { ok: true };
+  if (!team.hand.includes(absIndex)) return { ok: false, why: 'That card is not in your hand.' };
+  if (isAfterWhistle(day, ds, nowEpoch)) return { ok: false, why: 'The whistle has gone.' };
+  if (skipsLeft(ds, side) <= 0) {
+    return { ok: false, why: `That was your last skip. ${content.rules.skipsPerDay} a day.` };
+  }
 
   team.vetoed.push({
     i: absIndex,
@@ -435,8 +453,8 @@ export function vetoCard(state, day, side, absIndex, by, nowEpoch = Date.now()) 
     by,
   });
   team.hand = team.hand.filter((i) => i !== absIndex);
-  // Ten minutes frozen, and the next draw is blocked until it clears.
-  team.freezeUntil = nowEpoch + realMsForGameMinutes(content.rules.vetoFreezeMinutes);
+  refill(day, ds, side, state.flags, nowEpoch);
+  return { ok: true };
 }
 
 // Called on a tick once a freeze has run out, so the blocked draw arrives.
@@ -501,7 +519,7 @@ export function checkSweep(state, day, side, nowEpoch = Date.now()) {
 // the id that would count the same tap twice.
 export function logStanding(state, day, mechanicId, buttonId, by, opId, nowEpoch = Date.now()) {
   const ds = ensureDay(state, day);
-  const mech = content.standingMechanics.find((m) => m.id === mechanicId);
+  const mech = (content.standingMechanics || []).find((m) => m.id === mechanicId);
   if (!mech) return { ok: false, why: 'Unknown mechanic.' };
   const list = ds.standing[mechanicId] || (ds.standing[mechanicId] = []);
   if (list.some((f) => f.id === opId)) return { ok: true };
@@ -595,10 +613,13 @@ export function cardPayout(day, dayState, side, cardId, opts = {}) {
   const halved = opts.half != null ? opts.half : team.halfPending;
   const factor = halved ? 0.5 : 1;
 
-  const pos = team.position;
+  // A Position left behind in an older document must not multiply anything once
+  // the rule is switched off — otherwise it multiplies by undefined and every
+  // number on the card becomes NaN.
+  const pos = feature('position') ? team.position : null;
   const isPosition = !!pos && pos.cardId === cardId;
   const mult = isPosition
-    ? (pos.triple ? content.rules.positionTriple : content.rules.positionDouble)
+    ? (pos.triple ? content.rules.positionTriple : content.rules.positionDouble) || 1
     : 1;
 
   return {
@@ -655,6 +676,7 @@ function positionMultiplier(position) {
 // simply open, and the penalty must not appear in the ledger — a team that has
 // just declared has not lost 800, it has staked it.
 export function positionOutcome(dayState, side, day, nowEpoch = Date.now()) {
+  if (!feature('position')) return null;
   const team = dayState.teams[side];
   if (!team.position) return null;
   const pos = team.position;
@@ -729,7 +751,7 @@ export function scoreTeam(day, dayState, side, state, nowEpoch = Date.now()) {
     });
   }
 
-  if (pos && posOutcome && posOutcome.state === 'failed') {
+  if (feature('position') && pos && posOutcome && posOutcome.state === 'failed') {
     lines.push({
       label: `Position failed — ${content.cards[pos.cardId].title}`,
       value: content.rules.positionFailPenalty,
@@ -780,7 +802,7 @@ export function scoreTeam(day, dayState, side, state, nowEpoch = Date.now()) {
     }
   }
 
-  if (day.findMy && day.findMy.enabled && day.findMy.cost > 0) {
+  if (feature('findMy') && day.findMy && day.findMy.enabled && day.findMy.cost > 0) {
     const looks = findMyCount(dayState, side);
     if (looks > 0) {
       lines.push({
@@ -793,7 +815,7 @@ export function scoreTeam(day, dayState, side, state, nowEpoch = Date.now()) {
   }
 
   const pairing = pairingForDay(state, day);
-  for (const mech of content.standingMechanics) {
+  for (const mech of (feature('standingMechanics') && content.standingMechanics) || []) {
     const fires = dayState.standing[mech.id] || [];
     for (const fire of fires) {
       const button = mech.buttons.find((b) => b.id === fire.buttonId);

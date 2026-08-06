@@ -22,6 +22,7 @@ let flashUntil = 0;
 let busy = false;
 let lastSignature = '';
 let releasing = false;
+let focusAt = 0;          // which card in hand is showing full size
 
 const app = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -88,87 +89,65 @@ async function act(fn) {
 // --- Card ------------------------------------------------------------------
 
 // Card type is a full-bleed coloured band, so you know what a card is before
-// reading a word of it.
+// reading a word of it. Two kinds only, and neither is jargon.
 function typeBar(card) {
-  const chipClass = { VERSUS: 'solid', SOLO: 'green', AUTO_VETO: '' }[card.type] ?? '';
-  const out = [`<span class="chip ${chipClass}">${esc(E.cardTypeOf(card).label)}</span>`];
+  const type = E.cardTypeOf(card);
+  const out = [`<span class="chip ${card.type === 'VERSUS' ? 'solid' : 'green'}">${esc(type.label)}</span>`];
   for (const tagId of card.tags || []) {
     const tag = content.cardTags[tagId];
     if (!tag) continue;
-    const cls = tagId === 'timeSink' ? 'ochre' : 'blue';
-    const extra = tagId === 'timeSink' && card.minutes ? ` · ${card.minutes} min` : '';
-    out.push(`<span class="chip ${cls}">${esc(tag.label)}${extra}</span>`);
+    out.push(`<span class="chip ${tagId === 'timeSink' ? 'ochre' : 'blue'}">${esc(tag.label)}</span>`);
   }
   return `<div class="typebar">${out.join('')}</div>`;
 }
 
-// What the card pays YOU, right now — not the number that was printed on it.
-function payoutRows(card, pay) {
+// What the card means and what it pays, in sentences rather than a rulebook.
+function payoutLines(card, pay) {
   const rows = [];
   if (pay.halved) {
     rows.push(`<div class="payout mod"><span class="win">Half is on you</span>
       <span class="lead"></span><span class="lose">was ${coins(pay.base)}</span></div>`);
   }
-  if (pay.isPosition) {
-    rows.push(`<div class="payout mod"><span class="win">Position ×${pay.mult}</span>
-      <span class="lead"></span><span class="lose">${coins(pay.win)} if you land it</span></div>`);
-  }
+  rows.push(`<p class="typeline">${esc(E.cardTypeOf(card).line)}</p>`);
   if (pay.versus) {
     rows.push(`<div class="payout"><span class="win">Win ${coins(pay.face)}</span>
       <span class="lead"></span><span class="lose">Lose ${coins(pay.lose)}</span></div>`);
-  } else if (card.type === 'AUTO_VETO') {
-    rows.push(`<div class="payout"><span class="win">Both teams may score</span>
-      <span class="lead"></span><span class="lose">No penalty</span></div>`);
-  } else {
-    rows.push(`<div class="payout"><span class="win">Both teams may score</span>
-      <span class="lead"></span><span class="lose">Fixed</span></div>`);
   }
   return rows.join('');
 }
 
-function evidenceBlock(card, team, cardId, disabled) {
-  const list = card.evidence || [];
-  if (!list.length) return '';
-  const ticked = E.evidenceFor(team, cardId);
-  return `<div class="evidence">Evidence
-    <div class="row">
-      ${list.map((item) => `
-        <button class="box" data-act="evidence" data-card="${esc(cardId)}"
-          data-item="${esc(item)}" data-on="${ticked[item] ? '0' : '1'}" ${disabled ? 'disabled' : ''}>
-          <i class="b${ticked[item] ? ' on' : ''}"></i> ${esc(item)}
-        </button>`).join('')}
-    </div>
+// The two cards you are not looking at, as one-line rows you can tap to bring
+// forward. Three full cards on screen was the main reason nobody knew what to
+// do next.
+function handStrip(day, hand, focusAt) {
+  const others = hand.map((i, n) => ({ i, n })).filter((x) => x.n !== focusAt);
+  if (!others.length) return '';
+  return `<div class="alsohand">
+    <div class="k">Also in hand — tap to bring forward</div>
+    ${others.map(({ i, n }) => {
+      const card = content.cards[day.sequence[i].id];
+      return `<button class="handrow" data-act="focus" data-n="${n}">
+        <span>${esc(card.title)}</span><span class="num">${coins(card.value)}</span>
+      </button>`;
+    }).join('')}
   </div>`;
 }
 
-function attemptsBlock(card, team, cardId) {
-  if (!card.attempts) return '';
-  const used = E.attemptsUsed(team, cardId);
-  const left = Math.max(0, card.attempts - used);
-  const marks = Array.from({ length: card.attempts }, (_, i) =>
-    `<i class="${i < used ? 'used' : ''}"></i>`).join('');
-  return `<div class="evidence">Attempts left
-    <div class="row"><span class="box"><span class="tally">${marks}</span>
-      <span style="margin-left:8px">${left} of ${card.attempts}</span></span></div>
-  </div>`;
-}
-
-function cardMarkup(state, day, dayState, side, absIndex, opts = {}) {
+function cardMarkup(state, day, dayState, side, absIndex) {
   const entry = day.sequence[absIndex];
   const card = content.cards[entry.id];
   const team = dayState.teams[side];
   const now = Date.now();
-  const frozen = E.isFrozen(team, now);
   const ended = E.isAfterWhistle(day, dayState, now);
-  const disabled = frozen || ended || opts.suspended;
+  const disabled = E.isFrozen(team, now) || ended;
 
   const pay = E.cardPayout(day, dayState, side, entry.id);
   const ordinals = E.cardOrdinals(day, state.flags);
   const total = E.liveCardIds(day, state.flags).length;
-  const oppBanked = E.opponentBanked(day, dayState, side, entry.id);
+  const skips = E.skipsLeft(dayState, side);
   const names = teamNames(state, day);
   const other = side === 'A' ? 'B' : 'A';
-
+  const oppBanked = E.opponentBanked(day, dayState, side, entry.id);
   const shots = state.photos.filter(
     (p) => p.dayId === day.id && p.cardId === entry.id && p.side === side);
 
@@ -181,7 +160,7 @@ function cardMarkup(state, day, dayState, side, absIndex, opts = {}) {
   <article class="card">
     <div class="slug">
       <span>No. ${ordinals[entry.id] || '—'} of ${total}</span>
-      <span>${opts.suspended ? 'Suspended' : 'In hand'}</span>
+      <span>${skips} skip${skips === 1 ? '' : 's'} left</span>
     </div>
     ${typeBar(card)}
     <div class="pad">
@@ -190,26 +169,19 @@ function cardMarkup(state, day, dayState, side, absIndex, opts = {}) {
         <div class="price">${coins(pay.face)}</div>
       </div>
       <div class="pricerule"></div>
-      ${payoutRows(card, pay)}
+      ${payoutLines(card, pay)}
       <p class="body">${esc(card.body)}</p>
-      ${oppBanked ? `<div class="opp">${esc(names[other])} have already banked this one</div>` : ''}
+      ${oppBanked ? `<div class="opp">${esc(names[other])} have already done this one</div>` : ''}
       ${timeNote}
-      ${opts.suspended ? '<p class="note"><strong>Suspended.</strong> You hold one card only until the curse lifts.</p>' : ''}
-      ${attemptsBlock(card, team, entry.id)}
-      ${evidenceBlock(card, team, entry.id, disabled)}
       ${shots.length ? `<div class="shots">${shots.map((p) => `<img src="${esc(Net.photoUrl(p.id))}" alt="">`).join('')}</div>` : ''}
     </div>
     <div class="card-foot">
-      <button class="primary grow" data-act="complete" data-i="${absIndex}" ${disabled ? 'disabled' : ''}>Complete</button>
-      ${card.attempts
-        ? `<button data-act="attempt" data-i="${absIndex}" ${disabled ? 'disabled' : ''}>Failed attempt</button>`
-        : `<button data-act="veto" data-i="${absIndex}" ${disabled ? 'disabled' : ''}>Veto −${content.rules.vetoFreezeMinutes}m</button>`}
+      <button class="primary grow" data-act="complete" data-i="${absIndex}" ${disabled ? 'disabled' : ''}>Did it</button>
+      <button data-act="skip" data-i="${absIndex}" ${disabled || skips <= 0 ? 'disabled' : ''}>Skip</button>
       <label class="btn file small">Photo
         <input type="file" accept="image/*" capture="environment"
                data-act="photo" data-card="${esc(entry.id)}" ${ended ? 'disabled' : ''}>
       </label>
-      ${!team.position && !ended && !opts.suspended
-        ? `<button class="small green" data-act="position" data-i="${absIndex}">Position</button>` : ''}
     </div>
   </article>`;
 }
@@ -217,9 +189,7 @@ function cardMarkup(state, day, dayState, side, absIndex, opts = {}) {
 function curseMarkup(day, rec) {
   const curse = content.curses[rec.curseId];
   const e = curse.effect;
-  const band = rec.converted
-    ? `Curse · late — flat ${coins(content.rules.lateCurseFlatPenalty)}`
-    : `Curse${e.minutes ? ` · ${e.minutes} min` : ''}`;
+  const band = `Curse${e.minutes ? ` · ${e.minutes} min` : ''}`;
   return `
   <article class="card curse">
     <div class="slug"><span>Drawn ${esc(E.formatHM(rec.gameAt))}</span><span>Curse</span></div>
@@ -231,7 +201,6 @@ function curseMarkup(day, rec) {
       </div>
       <div class="pricerule"></div>
       <p class="body">${esc(curse.body)}</p>
-      ${rec.converted ? `<p class="body">Drawn after ${esc(day.convertAt)}. It keeps its coins; the time penalty became a flat ${coins(content.rules.lateCurseFlatPenalty)}.</p>` : ''}
     </div>
   </article>`;
 }
@@ -244,7 +213,7 @@ function curseMarkup(day, rec) {
 function nowBand(state, day, dayState, side) {
   const team = dayState.teams[side];
   const now = Date.now();
-  const left = content.rules.positionTriple;
+  const skips = E.skipsLeft(dayState, side);
   let tone = '';
   let text;
 
@@ -256,34 +225,24 @@ function nowBand(state, day, dayState, side) {
     text = `Deck cleared. Play has stopped for you and ${coins(content.rules.cleanSweepBonus)} is banked.`;
   } else if (E.isFrozen(team, now)) {
     tone = 'warn';
-    text = `Frozen — ${E.formatDuration(E.freezeRemainingGameMinutes(team, now))} to go. Sit down. No planning, no looking ahead.`;
+    text = `Sit down — ${E.formatDuration(E.freezeRemainingGameMinutes(team, now))} to go.`;
   } else if (team.halfPending) {
     tone = 'warn';
-    text = 'Half is on you — your next completed card is worth half. Spend it on something small.';
-  } else if (!team.position && team.done.length < 2) {
-    const togo = 2 - team.done.length;
-    tone = 'green';
-    text = `Position still open — declare now for ×${left}. ${togo} more completion${togo === 1 ? '' : 's'} and it drops to ×${content.rules.positionDouble}.`;
-  } else if (day.zones && !E.zonesOpen(day, dayState, now)) {
-    tone = 'green';
-    text = `${day.zones[side]} until ${E.formatHM(E.zonesLiftAt(dayState))}.`;
+    text = 'Your next card is worth half. Spend it on something small.';
   } else if (!team.hand.length && team.drawn >= day.sequence.length) {
     text = 'Deck spent. Nothing left to draw.';
   } else {
-    const n = E.activeHand(team, now).length;
-    text = `${n} in hand. Complete or veto one to draw the next.`;
+    text = skips > 0
+      ? `Do it, or skip it. ${skips} skip${skips === 1 ? '' : 's'} left today.`
+      : 'Do it. You are out of skips.';
   }
 
   const progress = E.deckProgress(day, dayState, side, state.flags);
   const totals = E.scoreTeam(day, dayState, side, state);
   const bits = [
     `<span><b>${progress.done}</b> of ${progress.total} done</span>`,
-    totals.pending ? `<span><b>${totals.pending}</b> pending at dinner</span>` : '',
-    team.vetoed.length ? `<span><b>${team.vetoed.length}</b> vetoed</span>` : '',
-    team.failed.length ? `<span><b>${team.failed.length}</b> beat you</span>` : '',
-    team.position
-      ? `<span>Position ×${team.position.triple ? content.rules.positionTriple : content.rules.positionDouble}</span>`
-      : '<span>Position open</span>',
+    totals.pending ? `<span><b>${totals.pending}</b> to settle at dinner</span>` : '',
+    `<span><b>${skips}</b> skips left</span>`,
   ].filter(Boolean).join('');
 
   return `<div class="now ${tone}"><span class="k">Now</span><span class="t">${esc(text)}</span></div>
@@ -405,6 +364,15 @@ function screenStart(state, day) {
   </details>
 
   <div class="block">
+    <div class="label">How it works</div>
+    <p class="note">You hold three cards. Do one and the next arrives. If you do not
+    fancy one, skip it — you get ${content.rules.skipsPerDay} skips a day and no more.
+    Some cards say <strong>both teams</strong>, and those are settled at dinner:
+    the better one takes the lot, the other takes a quarter. Clear the whole deck
+    before the whistle and you take ${coins(content.rules.cleanSweepBonus)}.</p>
+  </div>
+
+  <div class="block">
     <div class="label">The clock</div>
     <p class="note">Cards deal the moment you press start and the clock runs from then to the whistle at ${esc(day.whistle)}.
     ${content.clock.speedFactor !== 1
@@ -462,22 +430,20 @@ function screenPlay(state, day, dayState) {
   let body = '';
 
   if (ended) {
-    body += `<button class="big primary" data-act="tab" data-id="dinner">Go to dinner</button>`;
+    body += '<button class="big primary" data-act="tab" data-id="dinner">Go to dinner</button>';
   } else if (!team.swept) {
-    for (const eff of E.displayEffects(team, now)) {
-      body += `<div class="notice red"><span class="k">${esc(eff.title)}</span>
-        ${E.formatDuration(eff.remaining)} remaining.</div>`;
-    }
     if (showCurse) body += curseMarkup(day, recentCurse);
 
-    const active = E.activeHand(team, now);
-    const suspended = E.suspendedHand(team, now);
-    if (!active.length && !suspended.length) {
+    const hand = E.activeHand(team, now);
+    if (!hand.length) {
       body += `<div class="notice"><span class="k">Hand empty</span>
-        ${team.drawn >= day.sequence.length ? 'The deck is spent.' : 'Waiting on the freeze to clear.'}</div>`;
+        ${team.drawn >= day.sequence.length ? 'The deck is spent.' : 'Waiting on the curse to lift.'}</div>`;
+    } else {
+      // One card at a time. The rest are a tap away.
+      const at = Math.min(focusAt, hand.length - 1);
+      body += cardMarkup(state, day, dayState, side, hand[at]);
+      body += handStrip(day, hand, at);
     }
-    body += active.map((i) => cardMarkup(state, day, dayState, side, i)).join('');
-    body += suspended.map((i) => cardMarkup(state, day, dayState, side, i, { suspended: true })).join('');
   }
 
   return `
@@ -487,57 +453,6 @@ function screenPlay(state, day, dayState) {
   ${clockBar(day, dayState)}
   ${nowBand(state, day, dayState, side)}
   ${body}`;
-}
-
-function screenCounters(state, day, dayState) {
-  const side = mySide(state, day);
-  const names = teamNames(state, day);
-  const teamsKnown = !!E.pairingForDay(state, day);
-
-  const findMy = day.findMy && day.findMy.enabled ? `
-    <div class="block">
-      <div class="label">Find My</div>
-      <p class="note">${day.findMy.cost > 0
-        ? `Legal, declared at dinner, ${coins(day.findMy.cost)} a look.`
-        : 'Free and unlimited today. Nothing to log.'}</p>
-      ${day.findMy.cost > 0 ? `
-        <div class="spread" style="margin:10px 0">
-          <span>${esc(names.A)}</span><span class="counter-count">${E.findMyCount(dayState, 'A')}</span>
-        </div>
-        <div class="spread" style="margin-bottom:10px">
-          <span>${esc(names.B)}</span><span class="counter-count">${E.findMyCount(dayState, 'B')}</span>
-        </div>
-        <button class="grow" data-act="findmy" ${!side ? 'disabled' : ''}>Log a look — ${coins(-day.findMy.cost)}</button>` : ''}
-    </div>` : '';
-
-  return `
-  ${masthead(state, day)}
-  ${daySwitcher(state)}
-  <div class="block">
-    <div class="label">Standing mechanics</div>
-    <p class="note">They fire when they fire. No card needs to be open and the day does not need to have started.</p>
-  </div>
-  ${content.standingMechanics.map((mech) => {
-    const fires = dayState.standing[mech.id] || [];
-    const spent = mech.dailyLimit != null && fires.length >= mech.dailyLimit;
-    return `
-    <div class="counter">
-      <div class="counter-head">
-        <span class="counter-title">${esc(mech.title)}</span>
-        <span class="counter-count${spent ? ' spent' : ''}">${fires.length}${mech.dailyLimit != null ? ` / ${mech.dailyLimit}` : ''}</span>
-      </div>
-      <p class="note" style="margin:6px 0 10px">${esc(playerName(mech.player))}. ${esc(mech.note)}</p>
-      <div class="btn-row">
-        ${mech.buttons.map((b) => `
-          <button class="small ${b.value < 0 ? 'danger' : ''} grow" data-act="standing"
-            data-mech="${esc(mech.id)}" data-btn="${esc(b.id)}" ${spent || !teamsKnown ? 'disabled' : ''}>
-            ${esc(b.label)} ${coins(b.value)}
-          </button>`).join('')}
-      </div>
-    </div>`;
-  }).join('')}
-  ${findMy}
-  ${!teamsKnown ? '<p class="note center" style="margin-top:14px">Flip for the pairing so these know which team to credit.</p>' : ''}`;
 }
 
 // The day sheet: what has actually happened, in the order it happened.
@@ -690,18 +605,6 @@ function screenDinner(state, day, dayState) {
       : '<p class="note">No VERSUS cards were reached.</p>'}
   </div>
 
-  <div class="block">
-    <div class="label">Position</div>
-    ${E.SIDES.map((s) => {
-      const team = dayState.teams[s];
-      if (!team.position) return `<p class="note">${esc(names[s])} — none declared.</p>`;
-      const outcome = E.positionOutcome(dayState, s, day);
-      return `<p class="note"><strong>${esc(names[s])}</strong> — ${esc(content.cards[team.position.cardId].title)},
-        declared ${esc(E.formatHM(team.position.gameAt))} at ×${team.position.triple ? content.rules.positionTriple : content.rules.positionDouble}.
-        <span class="${outcome.state === 'failed' ? 'loss' : ''}">${esc(outcome.state === 'landed' ? 'Landed.' : outcome.state === 'failed' ? `Failed. ${outcome.reason}` : outcome.reason)}</span></p>`;
-    }).join('')}
-  </div>
-
   <div class="scores">
     ${['A', 'divider', 'B'].map((s) => {
       if (s === 'divider') return '<div class="divider"></div>';
@@ -738,7 +641,7 @@ function screenDinner(state, day, dayState) {
 // --- Render ----------------------------------------------------------------
 
 function navMarkup() {
-  return [['play', 'Play'], ['count', 'Counters'], ['ledger', 'Day sheet'], ['dinner', 'Dinner']]
+  return [['play', 'Play'], ['ledger', 'Day sheet'], ['dinner', 'Dinner']]
     .map(([id, label]) =>
       `<button data-act="tab" data-id="${id}" ${tab === id ? 'aria-current="true"' : ''}>${label}</button>`)
     .join('');
@@ -808,7 +711,6 @@ function renderScreens() {
   }
 
   if (tab === 'play') html += started ? screenPlay(state, day, dayState) : screenStart(state, day);
-  else if (tab === 'count') html += screenCounters(state, day, safeDay);
   else if (tab === 'ledger') html += screenLedger(state, day, safeDay);
   else html += screenDinner(state, day, safeDay);
 
@@ -826,17 +728,13 @@ function signature(state) {
   if (!ds) return `${dayId}|${tab}|nostart|${state.setup.day1PairingId}|${me}|${!!flash}`;
   return [
     dayId, tab, ds.startedAt, !!flash,
-    E.isAfterWhistle(day, ds, now), E.zonesOpen(day, ds, now),
+    E.isAfterWhistle(day, ds, now),
     JSON.stringify(ds.dinner.verdicts), ds.dinner.superlatives.length, ds.dinner.declared,
-    ds.findMyLog.length,
-    JSON.stringify(Object.keys(ds.standing).map((k) => [k, ds.standing[k].length])),
-    state.photos.length, JSON.stringify(state.flags),
+    state.photos.length, JSON.stringify(state.flags), focusAt,
     ...E.SIDES.map((s) => {
       const t = ds.teams[s];
-      return [s, t.hand.join(','), t.done.length, t.vetoed.length, t.failed.length,
-        t.curses.length, t.attemptLog.length, JSON.stringify(t.evidence),
-        E.isFrozen(t, now), E.oneCardActive(t, now), t.halfPending, t.swept,
-        t.position ? t.position.i : 'x'].join(':');
+      return [s, t.hand.join(','), t.done.length, t.vetoed.length,
+        t.curses.length, E.isFrozen(t, now), t.halfPending, t.swept].join(':');
     }),
   ].join('|');
 }
@@ -944,6 +842,7 @@ document.addEventListener('click', async (ev) => {
   if (action === 'pickme') { me = el.dataset.id; localStorage.setItem(KEY_PLAYER, me); render(); return; }
   if (action === 'forgetme') { me = null; localStorage.removeItem(KEY_PLAYER); render(); return; }
   if (action === 'tab') { tab = el.dataset.id; flash = null; render(); return; }
+  if (action === 'focus') { focusAt = Number(el.dataset.n); render(); return; }
   if (action === 'day') {
     dayId = Number(el.dataset.id); localStorage.setItem(KEY_DAY, String(dayId)); render(); return;
   }
@@ -967,48 +866,16 @@ document.addEventListener('click', async (ev) => {
   }
   if (action === 'complete') {
     const i = Number(el.dataset.i);
+    focusAt = 0;
     await act(() => Net.mutate((draft) => E.completeCard(draft, day, side, i, me, Date.now())));
     return;
   }
-  if (action === 'veto') {
+  if (action === 'skip') {
     const i = Number(el.dataset.i);
-    if (!confirm(`Veto ${content.cards[day.sequence[i].id].title}?\n\n${content.text.vetoRule}`)) return;
-    await act(() => Net.mutate((draft) => E.vetoCard(draft, day, side, i, me, Date.now())));
-    return;
-  }
-  if (action === 'attempt') {
-    const i = Number(el.dataset.i);
-    const op = opId();
-    await act(() => Net.mutate((draft) => E.logAttempt(draft, day, side, i, me, op, Date.now())));
-    return;
-  }
-  if (action === 'evidence') {
-    const on = el.dataset.on === '1';
-    await act(() => Net.mutate((draft) =>
-      E.setEvidence(draft, day, side, el.dataset.card, el.dataset.item, on)));
-    return;
-  }
-  if (action === 'position') {
-    const i = Number(el.dataset.i);
-    const ds = state.days[day.id];
-    const check = E.canDeclarePosition(ds, side, i);
-    if (!check.ok) { say(check.why); return; }
-    const card = content.cards[day.sequence[i].id];
-    const triple = ds.teams[side].done.length < 2;
-    const mult = triple ? content.rules.positionTriple : content.rules.positionDouble;
-    if (!confirm(`Declare ${card.title} as your Position?\n\n×${mult} if you land it, ${content.rules.positionFailPenalty} if you do not.${E.isVersus(card) ? '\n\nIt is VERSUS — you must win it, not merely complete it.' : ''}\n\nThis locks for the day.`)) return;
-    await act(() => Net.mutate((draft) => E.declarePosition(draft, day, side, i, me, Date.now())));
-    return;
-  }
-  if (action === 'standing') {
-    const op = opId();
-    await act(() => Net.mutate((draft) =>
-      E.logStanding(draft, day, el.dataset.mech, el.dataset.btn, me, op, Date.now())));
-    return;
-  }
-  if (action === 'findmy') {
-    const op = opId();
-    await act(() => Net.mutate((draft) => E.logFindMy(draft, day, side, me, op, Date.now())));
+    const left = E.skipsLeft(state.days[day.id], side);
+    if (!confirm(`Skip ${content.cards[day.sequence[i].id].title}?\n\nYou have ${left} skip${left === 1 ? '' : 's'} left today.`)) return;
+    focusAt = 0;
+    await act(() => Net.mutate((draft) => E.skipCard(draft, day, side, i, me, Date.now())));
     return;
   }
   if (action === 'verdict') {
