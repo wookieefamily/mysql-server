@@ -26,6 +26,12 @@ export const content = {
   siteTitle: 'HAMSTERDAM — DEMO',
   banner: 'DEMO · HOUSEHOLD CHORES · NOT THE REAL GAME',
 
+  // Escape hatches on the day sheet: start a day over, or clear everything.
+  // True for the demo so a run that gets into a strange state can be cleared
+  // without anybody's help. The real build sets this false — nobody should be
+  // able to wipe a real afternoon with a mis-tap.
+  allowReset: true,
+
   // null = no password, open straight on the player picker.
   // The real build turns the gate on by putting a word here. Nothing else changes.
   password: null,

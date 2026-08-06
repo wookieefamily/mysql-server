@@ -120,15 +120,98 @@ export function newTeamState(offset) {
   };
 }
 
+// Bumped whenever the stored shape gains a field. See migrateState.
+export const SCHEMA = 2;
+
 export function newState() {
   return {
-    schema: 1,
+    schema: SCHEMA,
     build: content.build,
     setup: { day1PairingId: null },
     days: {},
     flags: {},
     photos: [],
   };
+}
+
+// The shared document outlives every deploy — that is the whole point of it. So
+// a build has to be able to read a document written by an older build without
+// falling over, and the place to deal with that is once, here, on the way in.
+//
+// Learned the hard way: a new build read fields an old document did not have,
+// threw inside render(), and left four phones showing a screen that ignored
+// every tap.
+export function migrateState(state) {
+  if (!state || typeof state !== 'object') return newState();
+
+  state.schema = SCHEMA;
+  state.build = state.build || content.build;
+  state.setup = state.setup || { day1PairingId: null };
+  state.flags = state.flags || {};
+  state.photos = Array.isArray(state.photos) ? state.photos : [];
+  state.days = state.days || {};
+
+  for (const key of Object.keys(state.days)) {
+    const ds = state.days[key];
+    if (!ds || typeof ds !== 'object') { delete state.days[key]; continue; }
+
+    ds.standing = ds.standing || {};
+    ds.dinner = ds.dinner || {};
+    ds.dinner.verdicts = ds.dinner.verdicts || {};
+    ds.dinner.superlatives = ds.dinner.superlatives || [];
+    ds.dinner.declared = !!ds.dinner.declared;
+
+    // Find My used to be a pair of counters. Turn them into log entries so the
+    // looks already taken still cost what they cost.
+    if (!Array.isArray(ds.findMyLog)) {
+      const counters = ds.findMy || {};
+      ds.findMyLog = [];
+      for (const side of SIDES) {
+        for (let i = 0; i < (counters[side] || 0); i += 1) {
+          ds.findMyLog.push({ id: `legacy-${side}-${i}`, side, by: null, at: ds.startedAt || 0 });
+        }
+      }
+    }
+    delete ds.findMy;
+
+    ds.teams = ds.teams || {};
+    for (const side of SIDES) {
+      const t = ds.teams[side] || (ds.teams[side] = newTeamState(0));
+      for (const list of ['hand', 'done', 'vetoed', 'curses', 'discarded', 'failed', 'attemptLog']) {
+        if (!Array.isArray(t[list])) t[list] = [];
+      }
+      if (!t.evidence || typeof t.evidence !== 'object') t.evidence = {};
+      if (typeof t.offset !== 'number') t.offset = 0;
+      if (typeof t.drawn !== 'number') t.drawn = t.hand.length;
+      // Older entries in standing logs have no id; give them one so the
+      // duplicate-tap guard has something to compare against.
+      for (const fires of Object.values(ds.standing)) {
+        if (!Array.isArray(fires)) continue;
+        fires.forEach((f, i) => { if (f && !f.id) f.id = `legacy-${i}`; });
+      }
+    }
+  }
+  return state;
+}
+
+// A phone running an older build should say so rather than quietly misbehave.
+export function isFromNewerBuild(state) {
+  return !!state && typeof state.schema === 'number' && state.schema > SCHEMA;
+}
+
+// Escape hatches. Gated on content.allowReset so a real afternoon cannot be
+// wiped by a mis-tap.
+export function resetDay(state, day) {
+  delete state.days[day.id];
+  ensureDay(state, day);
+  return { ok: true };
+}
+
+export function resetAll(state) {
+  const fresh = newState();
+  for (const key of Object.keys(state)) delete state[key];
+  Object.assign(state, fresh);
+  return { ok: true };
 }
 
 export function pairingForDay(state, day) {
@@ -404,7 +487,7 @@ export function checkSweep(state, day, side, nowEpoch = Date.now()) {
   // failing an AUTO-VETO is not a choice and is expected.
   const resolved = new Set([
     ...team.done.map((d) => d.cardId),
-    ...team.failed.map((f) => f.cardId),
+    ...(team.failed || []).map((f) => f.cardId),
   ]);
   if (live.length > 0 && live.every((id) => resolved.has(id))) {
     team.swept = true;
@@ -431,13 +514,14 @@ export function logStanding(state, day, mechanicId, buttonId, by, opId, nowEpoch
 
 export function logFindMy(state, day, side, by, opId, nowEpoch = Date.now()) {
   const ds = ensureDay(state, day);
+  ds.findMyLog = ds.findMyLog || [];
   if (ds.findMyLog.some((f) => f.id === opId)) return { ok: true };
   ds.findMyLog.push({ id: opId, side, by, at: nowEpoch });
   return { ok: true };
 }
 
 export function findMyCount(dayState, side) {
-  return dayState.findMyLog.filter((f) => f.side === side).length;
+  return (dayState.findMyLog || []).filter((f) => f.side === side).length;
 }
 
 // --- AUTO-VETO attempts ----------------------------------------------------
@@ -446,7 +530,7 @@ export function findMyCount(dayState, side) {
 // print its attempt count and nothing counted them.
 
 export function attemptsUsed(team, cardId) {
-  return team.attemptLog.filter((a) => a.cardId === cardId).length;
+  return (team.attemptLog || []).filter((a) => a.cardId === cardId).length;
 }
 
 export function attemptsLeft(team, card, cardId) {
@@ -460,6 +544,8 @@ export function logAttempt(state, day, side, absIndex, by, opId, nowEpoch = Date
   const entry = day.sequence[absIndex];
   const card = content.cards[entry.id];
   if (!card || !card.attempts) return { ok: false, why: 'That card has no attempt limit.' };
+  team.attemptLog = team.attemptLog || [];
+  team.failed = team.failed || [];
   if (team.attemptLog.some((a) => a.id === opId)) return { ok: true };
   if (!team.hand.includes(absIndex)) return { ok: false, why: 'That card is not in your hand.' };
   if (isAfterWhistle(day, ds, nowEpoch)) return { ok: false, why: 'The whistle has gone.' };
@@ -486,13 +572,14 @@ export function logAttempt(state, day, side, absIndex, by, opId, nowEpoch = Date
 export function setEvidence(state, day, side, cardId, item, on) {
   const ds = ensureDay(state, day);
   const team = ds.teams[side];
+  team.evidence = team.evidence || {};
   const bag = team.evidence[cardId] || (team.evidence[cardId] = {});
   if (on) bag[item] = true; else delete bag[item];
   return { ok: true };
 }
 
 export function evidenceFor(team, cardId) {
-  return team.evidence[cardId] || {};
+  return (team.evidence || {})[cardId] || {};
 }
 
 // --- What a card is actually worth to you, right now -----------------------
@@ -634,7 +721,7 @@ export function scoreTeam(day, dayState, side, state, nowEpoch = Date.now()) {
     });
   }
 
-  for (const entry of team.failed) {
+  for (const entry of team.failed || []) {
     lines.push({
       label: content.cards[entry.cardId].title,
       value: 0,

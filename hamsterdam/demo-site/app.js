@@ -629,7 +629,18 @@ function screenLedger(state, day, dayState) {
     <div class="label">This phone</div>
     <p class="note">You are ${esc(playerName(me))}.</p>
     <button class="small" data-act="forgetme">Not you?</button>
-  </div>`;
+  </div>
+
+  ${content.allowReset ? `
+  <div class="block">
+    <div class="label">Start over</div>
+    <p class="note">Shared with all four phones. Use it if a demo run gets into a
+    state you want out of.</p>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="small grow danger" data-act="resetday">Start ${esc(day.label)} over</button>
+      <button class="small grow danger" data-act="resetall">Clear everything</button>
+    </div>
+  </div>` : ''}`;
 }
 
 function screenDinner(state, day, dayState) {
@@ -740,7 +751,40 @@ function syncMarkup() {
   return '<div class="sync">In step with all phones</div>';
 }
 
+// A blank or frozen screen with nothing tappable is the worst failure available
+// to four people standing in a street. Whatever goes wrong, leave a way out.
+function screenBroken(err) {
+  return `
+  <div class="masthead">
+    <div class="kicker"><span>Something went wrong</span></div>
+    <h1>Hamsterdam</h1>
+    <div class="sub">The screen could not be drawn.</div>
+  </div>
+  <div class="notice red"><span class="k">Error</span>${esc(err && (err.message || err))}</div>
+  <div class="block">
+    <p class="note">Nothing has been lost. The score lives on the server, not on this phone.
+    Try reloading first. If that does not help, starting the day over will clear
+    today for everybody and leave the other days alone.</p>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="grow" data-act="reload">Reload</button>
+      <button class="grow danger" data-act="resetday">Start this day over</button>
+    </div>
+  </div>`;
+}
+
 function render() {
+  try {
+    renderScreens();
+  } catch (err) {
+    console.error(err);
+    try {
+      nav.classList.add('hide');
+      app.innerHTML = screenBroken(err);
+    } catch { /* nothing left to do */ }
+  }
+}
+
+function renderScreens() {
   bannerEl.textContent = content.banner;
   const state = Net.getState();
   const day = currentDay();
@@ -880,6 +924,21 @@ document.addEventListener('click', async (ev) => {
     const value = (document.getElementById('pw') || {}).value || '';
     if (value.trim().toLowerCase() === String(content.password).toLowerCase()) { unlocked = true; render(); }
     else say('That is not it.');
+    return;
+  }
+  if (action === 'reload') { location.reload(); return; }
+  if (action === 'resetday') {
+    if (!confirm(`Start ${day.label} over for everybody?\n\nThe other days are untouched.`)) return;
+    await act(() => Net.mutate((draft) => E.resetDay(draft, day)));
+    tab = 'play';
+    render();
+    return;
+  }
+  if (action === 'resetall') {
+    if (!confirm('Clear everything on all four phones?\n\nAll three days, every score and every photo reference.')) return;
+    await act(() => Net.mutate((draft) => E.resetAll(draft)));
+    tab = 'play';
+    render();
     return;
   }
   if (action === 'pickme') { me = el.dataset.id; localStorage.setItem(KEY_PLAYER, me); render(); return; }

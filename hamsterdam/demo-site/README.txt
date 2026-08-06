@@ -147,6 +147,25 @@ WHAT IS IN HERE
                 do not edit it by hand.
 
 
+IF SOMETHING GOES WRONG
+-----------------------
+
+At the foot of DAY SHEET there are two controls, shared with all four phones:
+
+  Start this day over    clears today only, leaves the other days alone
+  Clear everything       wipes all three days back to new
+
+Both ask before they do anything. They exist so a demo run that gets into a
+state you want out of can be cleared without anybody's help.
+
+If a screen ever fails to draw, the app shows what went wrong with a RELOAD
+button rather than freezing. Nothing is lost when that happens — the score lives
+on the server, not on the phone, so reloading picks it back up.
+
+(The real build turns these controls off, by setting allowReset to false in
+content.js. Nobody should be able to wipe a real afternoon with a mis-tap.)
+
+
 NOTES
 -----
 

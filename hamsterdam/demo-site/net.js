@@ -10,7 +10,7 @@
 //
 // No content passes through here. The server stores an opaque object.
 
-import { newState } from './engine.js';
+import { newState, migrateState } from './engine.js';
 
 const STATE_URL = '/api/state';
 const PHOTO_URL = '/api/photo/';
@@ -48,7 +48,10 @@ function notify() {
 
 function adopt(doc) {
   if (!doc || typeof doc.version !== 'number') return;
-  cached = { version: doc.version, state: doc.state || null };
+  // The store outlives deploys, so a document may have been written by an older
+  // build. Bring it up to shape once, here, and every reader downstream can
+  // assume the current shape.
+  cached = { version: doc.version, state: doc.state ? migrateState(doc.state) : null };
   status.lastSync = Date.now();
   status.connected = true;
   status.lastError = null;
@@ -63,6 +66,10 @@ export function onChange(fn) {
 // Never null — an untouched game reads as a fresh state without writing one.
 export function getState() {
   return cached.state || newState();
+}
+
+export function getCachedRaw() {
+  return cached.state;
 }
 
 export function getVersion() {
@@ -101,7 +108,9 @@ export async function mutate(fn) {
   notify();
   try {
     for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
-      const draft = cached.state ? clone(cached.state) : newState();
+      // Migrate the draft too, so what gets written back is the current shape
+      // rather than an old document with one new field bolted on.
+      const draft = cached.state ? migrateState(clone(cached.state)) : newState();
       let outcome;
       try {
         outcome = fn(draft);
