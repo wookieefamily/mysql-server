@@ -60,12 +60,32 @@ async function readState(blobs) {
   return { doc, etag: found.etag ?? null };
 }
 
+// The CDN in front of this function rewrites the ETag when it compresses a
+// response: `"v4"` leaves here and reaches the phone as `"v4-df"`. The phone
+// stores what it was given and sends that back, so comparing the header to our
+// own tag with === never matches and every poll pays for a full body. Strip the
+// weak-validator prefix and the CDN's encoding suffix before comparing.
+function normaliseTag(raw) {
+  return raw.trim()
+    .replace(/^W\//, '')
+    .replace(/^"(.*)"$/, '$1')
+    .replace(/-(df|gz|br|zst)$/, '');
+}
+
+// If-None-Match is a list, and `*` matches anything we hold.
+function tagMatches(header, tag) {
+  if (!header) return false;
+  if (header.trim() === '*') return true;
+  const want = normaliseTag(tag);
+  return header.split(',').some((candidate) => normaliseTag(candidate) === want);
+}
+
 async function handleGetState(req, blobs) {
   const { doc } = await readState(blobs);
   // Version doubles as the cache validator, so an unchanged poll costs a 304
   // and no body. Four phones polling every 2.5s outdoors on mobile data.
   const tag = `"v${doc.version}"`;
-  if (req.headers.get('if-none-match') === tag) {
+  if (tagMatches(req.headers.get('if-none-match'), tag)) {
     return new Response(null, { status: 304, headers: { etag: tag, ...CORS_HEADERS } });
   }
   return json(doc, 200, { etag: tag });

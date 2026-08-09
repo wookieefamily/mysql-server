@@ -811,10 +811,19 @@ async function readState(blobs) {
   const doc = found.data && typeof found.data === "object" ? found.data : EMPTY_STATE;
   return { doc, etag: found.etag ?? null };
 }
+function normaliseTag(raw) {
+  return raw.trim().replace(/^W\//, "").replace(/^"(.*)"$/, "$1").replace(/-(df|gz|br|zst)$/, "");
+}
+function tagMatches(header, tag) {
+  if (!header) return false;
+  if (header.trim() === "*") return true;
+  const want = normaliseTag(tag);
+  return header.split(",").some((candidate) => normaliseTag(candidate) === want);
+}
 async function handleGetState(req, blobs) {
   const { doc } = await readState(blobs);
   const tag = `"v${doc.version}"`;
-  if (req.headers.get("if-none-match") === tag) {
+  if (tagMatches(req.headers.get("if-none-match"), tag)) {
     return new Response(null, { status: 304, headers: { etag: tag, ...CORS_HEADERS } });
   }
   return json(doc, 200, { etag: tag });
