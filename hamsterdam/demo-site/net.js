@@ -47,7 +47,7 @@ function notify() {
 }
 
 function adopt(doc) {
-  if (!doc || typeof doc.version !== 'number') return;
+  if (!doc || typeof doc.version !== 'number') return false;
   // The store outlives deploys, so a document may have been written by an older
   // build. Bring it up to shape once, here, and every reader downstream can
   // assume the current shape.
@@ -56,6 +56,7 @@ function adopt(doc) {
   status.connected = true;
   status.lastError = null;
   notify();
+  return true;
 }
 
 export function onChange(fn) {
@@ -87,8 +88,11 @@ export async function pull({ force = false } = {}) {
       return false;
     }
     if (!res.ok) throw new Error(`GET ${res.status}`);
-    etag = res.headers.get('etag');
-    adopt(await res.json());
+    // Remember the validator only if the document it describes was taken. A
+    // validator without the state behind it would earn a 304 on every poll
+    // from here on, and this phone would never see the day move again.
+    const tag = res.headers.get('etag');
+    etag = adopt(await res.json()) ? tag : null;
     return true;
   } catch (err) {
     status.connected = false;
@@ -134,14 +138,17 @@ export async function mutate(fn) {
       }
 
       if (res.ok) {
-        etag = res.headers.get('etag');
-        adopt(await res.json());
+        const tag = res.headers.get('etag');
+        etag = adopt(await res.json()) ? tag : null;
         return outcome || { ok: true };
       }
 
       if (res.status === 409) {
-        // Somebody else wrote first. Take their version and re-apply.
+        // Somebody else wrote first. Take their version and re-apply. The
+        // conflict body carries no validator, so drop ours rather than keep
+        // one that no longer describes what we hold.
         adopt(await res.json());
+        etag = null;
         await sleep(50 + Math.random() * 150 * (attempt + 1));
         continue;
       }
