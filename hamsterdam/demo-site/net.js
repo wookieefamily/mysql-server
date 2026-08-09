@@ -30,6 +30,15 @@ export const status = {
   lastSync: null,
 };
 
+// The edge rewrites the validator when it compresses a response: the `"v4"` the
+// function issued reaches us as `"v4-df"`. Send that back and the edge answers
+// it itself, with a full body, instead of passing it to the function — so an
+// unchanged poll never gets its 304 and four phones re-download the document
+// every 2.5s all day. Hand back what the function actually issued.
+function originTag(tag) {
+  return tag ? tag.replace(/-(?:df|gz|br|zst)("?)$/, '$1') : tag;
+}
+
 function clone(obj) {
   return typeof structuredClone === 'function'
     ? structuredClone(obj)
@@ -91,7 +100,7 @@ export async function pull({ force = false } = {}) {
     // Remember the validator only if the document it describes was taken. A
     // validator without the state behind it would earn a 304 on every poll
     // from here on, and this phone would never see the day move again.
-    const tag = res.headers.get('etag');
+    const tag = originTag(res.headers.get('etag'));
     etag = adopt(await res.json()) ? tag : null;
     return true;
   } catch (err) {
@@ -138,7 +147,7 @@ export async function mutate(fn) {
       }
 
       if (res.ok) {
-        const tag = res.headers.get('etag');
+        const tag = originTag(res.headers.get('etag'));
         etag = adopt(await res.json()) ? tag : null;
         return outcome || { ok: true };
       }

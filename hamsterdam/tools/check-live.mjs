@@ -76,7 +76,7 @@ ok('the password matches the one being tested', c.password === password,
 ok('the clock runs in real time', c.clock.speedFactor === 1);
 ok('the clock reads the actual time of day', c.clock.fixedStart === null);
 ok('"start this day over" is available', c.allowReset === true);
-ok('"clear everything" is switched off', c.allowResetAll === false);
+ok('"clear everything" is available, behind a typed DELETE', c.allowResetAll === true);
 
 for (const d of c.days) {
   const cards = d.sequence.filter((e) => e.kind === 'card');
