@@ -80,6 +80,17 @@ level ever needs a guess.
 
 The same routine powers hints, which is why a hint can tell you *why*.
 
+## Drawing the yards
+
+Each square paints its own half of every wall it sits against, as an inset
+shadow — part of the square's own box. The two halves meet exactly on the
+boundary, so nothing can drift out of register the way an overlay can, and
+the seam is a fixed pixel width rather than a fraction of a cell, so a 4×4
+yard and an 11×11 yard get the same weight of line.
+
+Every yard is ringed in a deeper shade of its own fill, which means the
+boundary between two yards carries both their colours.
+
 ## Building
 
 ```sh

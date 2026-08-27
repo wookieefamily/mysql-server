@@ -59,8 +59,30 @@ const t = (name, ok, detail) => {
   await p.waitForTimeout(300);
   let s = await state();
   t("level 1 opens a 4×4 yard", s && s.N === 4 && (await p.locator(".cell").count()) === 16);
-  t("the yard walls are drawn",
-    (await p.locator("#wall-path").getAttribute("d")).length > 20);
+  t("yard seams are drawn by the squares themselves",
+    (await p.locator(".cell.w-t, .cell.w-r, .cell.w-b, .cell.w-l").count()) >= 4);
+  t("every outer square carries the board-edge seam", await p.evaluate(() => {
+    const N = game.N;
+    return cells.every(({ cell, r, c }) =>
+      (r !== 0 || cell.classList.contains("w-t")) &&
+      (c !== 0 || cell.classList.contains("w-l")) &&
+      (r !== N - 1 || cell.classList.contains("w-b")) &&
+      (c !== N - 1 || cell.classList.contains("w-r")));
+  }));
+  t("a seam sits on every boundary between two yards, and nowhere else",
+    await p.evaluate(() => {
+      const { N, region } = game.puzzle;
+      return cells.every(({ cell }, i) => {
+        const r = (i / N) | 0, c = i % N, g = region[i];
+        const want = {
+          "w-t": r === 0 || region[i - N] !== g,
+          "w-r": c === N - 1 || region[i + 1] !== g,
+          "w-b": r === N - 1 || region[i + N] !== g,
+          "w-l": c === 0 || region[i - 1] !== g,
+        };
+        return Object.entries(want).every(([k, v]) => cell.classList.contains(k) === v);
+      });
+    }));
 
   /* ---------- tap cycling: empty, crossed out, pup, empty ---------- */
   await p.click('.cell[data-i="0"]');

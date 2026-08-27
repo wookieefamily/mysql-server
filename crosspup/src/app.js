@@ -9,18 +9,18 @@ const LEVEL_PACK = `/*__LEVELS__*/`;
 /* Each yard on the board takes one of these colours, and the pup that lives
    there wears the matching jumper. */
 const PALETTE = [
-  { name: "Blueberry", l: "hsl(214 62% 88%)", d: "hsl(214 40% 26%)" },
-  { name: "Cherry",    l: "hsl(2 68% 89%)",   d: "hsl(2 42% 27%)" },
-  { name: "Clover",    l: "hsl(140 45% 86%)", d: "hsl(140 32% 22%)" },
-  { name: "Honey",     l: "hsl(45 78% 85%)",  d: "hsl(45 45% 25%)" },
-  { name: "Plum",      l: "hsl(282 45% 89%)", d: "hsl(282 32% 27%)" },
-  { name: "Bubblegum", l: "hsl(330 70% 91%)", d: "hsl(330 40% 28%)" },
-  { name: "Mint",      l: "hsl(168 48% 84%)", d: "hsl(168 34% 22%)" },
-  { name: "Sky",       l: "hsl(196 72% 93%)", d: "hsl(196 42% 32%)" },
-  { name: "Lime",      l: "hsl(92 50% 84%)",  d: "hsl(92 32% 22%)" },
-  { name: "Indigo",    l: "hsl(250 45% 85%)", d: "hsl(250 38% 31%)" },
-  { name: "Coral",     l: "hsl(14 78% 90%)",  d: "hsl(14 45% 29%)" },
-  { name: "Slate",     l: "hsl(210 16% 87%)", d: "hsl(210 12% 27%)" },
+  { name: "Blueberry", l: "hsl(214 62% 88%)", d: "hsl(214 40% 26%)", sl: "hsl(214 55% 55%)", sd: "hsl(214 55% 62%)" },
+  { name: "Cherry",    l: "hsl(2 68% 89%)",   d: "hsl(2 42% 27%)",   sl: "hsl(2 58% 56%)",   sd: "hsl(2 62% 65%)" },
+  { name: "Clover",    l: "hsl(140 45% 86%)", d: "hsl(140 32% 22%)", sl: "hsl(140 42% 42%)", sd: "hsl(140 40% 55%)" },
+  { name: "Honey",     l: "hsl(45 78% 85%)",  d: "hsl(45 45% 25%)",  sl: "hsl(42 62% 46%)",  sd: "hsl(45 60% 58%)" },
+  { name: "Plum",      l: "hsl(282 45% 89%)", d: "hsl(282 32% 27%)", sl: "hsl(282 40% 57%)", sd: "hsl(282 45% 66%)" },
+  { name: "Bubblegum", l: "hsl(330 70% 91%)", d: "hsl(330 40% 28%)", sl: "hsl(330 55% 62%)", sd: "hsl(330 58% 68%)" },
+  { name: "Mint",      l: "hsl(168 48% 84%)", d: "hsl(168 34% 22%)", sl: "hsl(168 45% 40%)", sd: "hsl(168 42% 52%)" },
+  { name: "Sky",       l: "hsl(196 72% 93%)", d: "hsl(196 42% 32%)", sl: "hsl(196 55% 55%)", sd: "hsl(196 55% 66%)" },
+  { name: "Lime",      l: "hsl(92 50% 84%)",  d: "hsl(92 32% 22%)",  sl: "hsl(92 45% 40%)",  sd: "hsl(92 42% 52%)" },
+  { name: "Indigo",    l: "hsl(250 45% 85%)", d: "hsl(250 38% 31%)", sl: "hsl(250 45% 60%)", sd: "hsl(250 50% 68%)" },
+  { name: "Coral",     l: "hsl(14 78% 90%)",  d: "hsl(14 45% 29%)",  sl: "hsl(14 62% 58%)",  sd: "hsl(14 62% 66%)" },
+  { name: "Slate",     l: "hsl(210 16% 87%)", d: "hsl(210 12% 27%)", sl: "hsl(210 14% 50%)", sd: "hsl(210 14% 60%)" },
 ];
 
 const FREE_SIZES = [5, 6, 7, 8, 9, 10];
@@ -123,6 +123,18 @@ function buildBoard() {
     cell.setAttribute("role", "gridcell");
     cell.style.setProperty("--tint-l", tint.l);
     cell.style.setProperty("--tint-d", tint.d);
+    cell.style.setProperty("--seam-l", tint.sl);
+    cell.style.setProperty("--seam-d", tint.sd);
+
+    // Each square draws its own half of any wall it sits against, so the two
+    // halves meet exactly on the boundary. Drawing the walls as part of the
+    // squares — rather than as an overlay on top of them — is what keeps
+    // them lined up at every board size.
+    const g = region[i];
+    if (r === 0 || region[i - N] !== g) cell.classList.add("w-t");
+    if (c === N - 1 || region[i + 1] !== g) cell.classList.add("w-r");
+    if (r === N - 1 || region[i + N] !== g) cell.classList.add("w-b");
+    if (c === 0 || region[i - 1] !== g) cell.classList.add("w-l");
 
     const img = el("img");
     img.alt = "";
@@ -145,28 +157,6 @@ function buildBoard() {
     board.appendChild(cell);
     cells.push({ cell, img, no, r, c, g: region[i] });
   }
-
-  drawWalls();
-}
-
-/** The yard walls, drawn as one crisp overlay rather than as cell borders —
- *  no doubled-up lines, and it scales with the board. */
-function drawWalls() {
-  const { N, region } = game.puzzle;
-  const svg = $("walls");
-  svg.setAttribute("viewBox", `0 0 ${N} ${N}`);
-  const seg = [];
-
-  for (let r = 0; r < N; r++) {
-    for (let c = 0; c < N; c++) {
-      const g = region[r * N + c];
-      if (r === 0 || region[(r - 1) * N + c] !== g) seg.push(`M${c} ${r}h1`);
-      if (c === 0 || region[r * N + c - 1] !== g) seg.push(`M${c} ${r}v1`);
-      if (r === N - 1) seg.push(`M${c} ${r + 1}h1`);
-      if (c === N - 1) seg.push(`M${c + 1} ${r}v1`);
-    }
-  }
-  $("wall-path").setAttribute("d", seg.join(""));
 }
 
 function render() {

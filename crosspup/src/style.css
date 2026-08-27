@@ -22,6 +22,8 @@
   --shadow-sm: 0 1px 2px rgba(70, 50, 30, .1);
   --radius: 16px;
   --lit: saturate(1.7) brightness(.95);
+  --seam: #6f5c46;          /* fallback; each square overrides with its yard's */
+  --seam-w: 1.5px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -47,6 +49,7 @@
     --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 14px 34px -16px rgba(0, 0, 0, .75);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, .35);
     --lit: saturate(1.5) brightness(1.35);
+    --seam: #b6a184;
   }
 }
 :root[data-theme="dark"] {
@@ -72,6 +75,7 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 14px 34px -16px rgba(0, 0, 0, .75);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .35);
   --lit: saturate(1.5) brightness(1.35);
+  --seam: #b6a184;
 }
 
 * { box-sizing: border-box; }
@@ -248,28 +252,50 @@ kbd {
 .board {
   position: relative; display: grid; gap: 0;
   aspect-ratio: 1/1; width: 100%;
-  border-radius: 7px; overflow: hidden;
+  border-radius: 6px; overflow: hidden;
   touch-action: manipulation;
 }
-.walls { position: absolute; inset: 9px; pointer-events: none; overflow: visible; }
-.walls path { fill: none; stroke: var(--wall); stroke-width: .085; stroke-linecap: round; }
-
 .cell {
   position: relative; min-width: 0; min-height: 0; overflow: hidden;
   border: 0; padding: 0; margin: 0;
   background: var(--tint-l);
-  box-shadow: inset -1px -1px 0 0 var(--grid);
   cursor: pointer; display: grid; place-items: center;
   transition: filter .12s;
+
+  /* Region seams.  Each square paints its own half of every wall it sits
+     against, as an inset shadow — part of the square's own box, so the two
+     halves always meet exactly on the boundary and nothing can drift out of
+     register the way an overlay can.  Width is fixed in pixels, so a 4×4
+     yard and an 11×11 yard get the same weight of line. */
+  --t: 0px; --r: 0px; --b: 0px; --l: 0px;
+  box-shadow:
+    inset 0 var(--t) 0 0 var(--seam),
+    inset calc(0px - var(--r)) 0 0 0 var(--seam),
+    inset 0 calc(0px - var(--b)) 0 0 var(--seam),
+    inset var(--l) 0 0 0 var(--seam),
+    inset -1px -1px 0 0 var(--grid);
 }
+.cell.w-t { --t: var(--seam-w); }
+.cell.w-r { --r: var(--seam-w); }
+.cell.w-b { --b: var(--seam-w); }
+.cell.w-l { --l: var(--seam-w); }
+
+/* Every yard is ringed in a deeper shade of its own fill, so the boundary
+   between two yards carries both their colours. */
+.cell { --seam: var(--seam-l); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .cell { --seam: var(--seam-d); }
+}
+:root[data-theme="dark"] .cell { --seam: var(--seam-d); }
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .cell { background: var(--tint-d); }
 }
 :root[data-theme="dark"] .cell { background: var(--tint-d); }
 
 .cell:hover { filter: brightness(1.06); }
-.cell.sel { box-shadow: inset -1px -1px 0 0 var(--grid), inset 0 0 0 3px var(--accent); z-index: 3; }
-.cell:focus-visible { outline: 0; box-shadow: inset -1px -1px 0 0 var(--grid), inset 0 0 0 3px var(--accent); z-index: 3; }
+.cell.sel { outline: 3px solid var(--accent); outline-offset: -3px; z-index: 4; }
+.cell:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; z-index: 4; }
 .cell.lit { filter: var(--lit); }
 
 .cell img {
