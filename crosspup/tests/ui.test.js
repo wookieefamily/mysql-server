@@ -1,5 +1,5 @@
-/* Plays Crosspup in a real browser and checks that the board, the pups and
-   the saved state all behave.  Needs Playwright and a Chromium build:
+/* Plays Crosspup in a real browser and checks the board, the controls and
+   the saved progress.  Needs Playwright and a Chromium build:
 
        npm i playwright
        node tests/ui.test.js
@@ -8,6 +8,7 @@
    The test skips itself (exit 0) when Playwright is not installed.
 */
 const path = require("path");
+const fs = require("fs");
 
 let chromium;
 try { ({ chromium } = require("playwright")); }
@@ -19,157 +20,191 @@ catch (e) {
 const PAGE = "file://" + path.join(__dirname, "..", "dist", "index.html");
 const CHROME = process.env.CHROME || "/opt/pw-browsers/chromium";
 
+let failures = 0;
+const t = (name, ok, detail) => {
+  if (ok) console.log("  ok    " + name);
+  else { failures++; console.log("  FAIL  " + name + (detail ? " — " + detail : "")); }
+};
+
 (async () => {
-  const b = await chromium.launch(require("fs").existsSync(CHROME) ? { executablePath: CHROME } : {});
-  const ctx = await b.newContext({ viewport: { width: 700, height: 1000 } });
+  const browser = await chromium.launch(
+    fs.existsSync(CHROME) ? { executablePath: CHROME } : {}
+  );
+  const ctx = await browser.newContext({ viewport: { width: 700, height: 1100 } });
   const p = await ctx.newPage();
   const errs = [];
-  p.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
-  p.on('console', m => { if (m.type() === 'error' && !/ERR_CONNECTION|fonts\.g/.test(m.text())) errs.push('console: ' + m.text()); });
+  p.on("pageerror", (e) => errs.push("PAGEERROR: " + e.message));
+  p.on("console", (m) => {
+    if (m.type() === "error" && !/ERR_CONNECTION|fonts\.g/.test(m.text())) errs.push(m.text());
+  });
+
   await p.goto(PAGE);
-  await p.waitForTimeout(500);
+  await p.waitForTimeout(400);
 
-  const t = (name, ok, extra) => console.log(`${ok ? '  ok   ' : '  FAIL '} ${name}${extra ? ' — ' + extra : ''}`);
+  const state = () => p.evaluate(() => (game ? {
+    cell: game.cell, N: game.N, level: game.puzzle.level,
+    solution: game.puzzle.solution, region: game.puzzle.region,
+    undo: game.undo.length, hints: game.hints, done: game.done,
+  } : null));
 
-  // --- pick the small board so the playthrough is quick
-  await p.click('#sizes button[data-size="4"]');
+  /* ---------- the level list ---------- */
+  t("level 1 is open, level 2 is not",
+    (await p.locator(".lv:not(.locked)").count()) === 1 &&
+    (await p.locator(".lv.locked").count()) > 0);
+  t("far-off chapters are collapsed, not 200 dead tiles",
+    (await p.locator(".locked-note").count()) >= 4);
+
+  /* ---------- opening a level ---------- */
+  await p.click(".lv.next");
   await p.waitForTimeout(300);
-  t('4x4 board renders 16 cells', await p.locator('.cell').count() === 16);
-  t('tray shows 4 pups', await p.locator('.pup').count() === 4);
+  let s = await state();
+  t("level 1 opens a 4×4 yard", s && s.N === 4 && (await p.locator(".cell").count()) === 16);
+  t("the yard walls are drawn",
+    (await p.locator("#wall-path").getAttribute("d")).length > 20);
 
-  // --- a wrong pup should be flagged and counted
-  const st = () => p.evaluate(() => ({
-    grid: game.grid, sol: game.solution, given: game.given, notes: game.notes,
-    mistakes: game.mistakes, hints: game.hints, sel: game.sel, done: game.done,
-    undo: game.undo.length, seconds: game.seconds,
-  }));
-  let s = await st();
-  const blank = s.grid.findIndex((v, i) => !s.given[i]);
-  const wrongVal = [1, 2, 3, 4].find(v => v !== s.sol[blank]);
+  /* ---------- tap cycling: empty, crossed out, pup, empty ---------- */
+  await p.click('.cell[data-i="0"]');
+  s = await state();
+  t("one tap crosses a square out", s.cell[0] === 2);
+  t("a crossed square shows its mark", await p.locator('.cell[data-i="0"] .no.on').count() === 1);
 
-  await p.click(`.cell[data-i="${blank}"]`);
-  await p.click(`.pup[data-v="${wrongVal}"]`);
-  s = await st();
-  t('wrong pup counts an oopsie', s.mistakes === 1, 'mistakes=' + s.mistakes);
-  t('wrong cell is flagged', await p.locator(`.cell[data-i="${blank}"].wrong`).count() === 1);
+  await p.click('.cell[data-i="0"]');
+  s = await state();
+  t("a second tap puts a pup down", s.cell[0] === 1);
+  t("the pup is visible", await p.locator('.cell[data-i="0"] img:not([hidden])').count() === 1);
+  t("only the crossed squares show a cross",
+    (await p.locator(".cell .no.on").count()) === 0);
 
-  // --- undo puts it back
-  await p.click('#t-undo');
-  s = await st();
-  t('undo clears the cell', s.grid[blank] === 0 && s.mistakes === 1);
+  await p.click('.cell[data-i="0"]');
+  s = await state();
+  t("a third tap clears the square", s.cell[0] === 0);
 
-  // --- notes mode pencils in dots, and does not touch the grid
-  await p.keyboard.press('Escape');
-  await p.click('#t-notes');
-  await p.click(`.cell[data-i="${blank}"]`);
-  await p.click(`.pup[data-v="1"]`);
-  await p.click(`.pup[data-v="2"]`);
-  s = await st();
-  t('notes mode writes notes', s.notes[blank] === 0b11 && s.grid[blank] === 0,
-    'notes=' + s.notes[blank]);
-  t('note dots are visible', await p.locator(`.cell[data-i="${blank}"] .notes i.on`).count() === 2);
-  await p.click(`.pup[data-v="2"]`);
-  s = await st();
-  t('tapping a note again rubs it out', s.notes[blank] === 0b01);
-  await p.click('#t-notes');
+  /* ---------- right click drops a pup straight in ---------- */
+  await p.click('.cell[data-i="3"]', { button: "right" });
+  s = await state();
+  t("right-click places a pup", s.cell[3] === 1);
 
-  // --- a pup held in hand drops into empty squares, but never overwrites
-  await p.keyboard.press('Escape');
-  s = await st();
-  const empties = s.grid.map((v, i) => (!v && !s.given[i] ? i : -1)).filter(i => i >= 0);
-  const brushVal = s.sol[empties[0]];
-  await p.click(`.pup[data-v="${brushVal}"]`);
-  await p.click(`.cell[data-i="${empties[0]}"]`);
-  s = await st();
-  t('held pup fills an empty square', s.grid[empties[0]] === brushVal);
-  const filled = s.grid.findIndex((v, i) => v && s.given[i]);
-  await p.click(`.cell[data-i="${filled}"]`);
-  s = await st();
-  t('held pup never overwrites an occupied square', s.grid[filled] === s.sol[filled]);
-  t('tapping an occupied square picks that pup up', s.sel === filled);
-  await p.keyboard.press('Escape');
-
-  // --- keyboard: arrows + digit
-  await p.click(`.cell[data-i="0"]`);
-  await p.keyboard.press('ArrowRight');
-  s = await st();
-  t('arrow key moves the selection', s.sel === 1, 'sel=' + s.sel);
-
-  // --- hint fills a real answer
-  await p.click('#t-hint');
-  s = await st();
-  const hinted = s.grid.filter((v, i) => v && !s.given[i] && v === s.sol[i]).length;
-  t('hint places a correct pup', s.hints === 1 && hinted >= 1);
-
-  // --- solve the rest with the keyboard
-  await p.evaluate(async () => {
-    for (let i = 0; i < game.grid.length; i++) {
-      if (game.given[i] || game.grid[i] === game.solution[i]) continue;
-      game.sel = i;
-      place(i, game.solution[i]);
-    }
-  });
-  await p.waitForTimeout(400);
-  s = await st();
-  t('board completes', s.done === true);
-  t('win dialog appears', await p.locator('#win:not([hidden])').count() === 1);
-  t('win stats show the hint', (await p.locator('#win-hint').innerText()) === '1');
-
-  // --- another round resets cleanly
-  await p.click('#win-again');
-  await p.waitForTimeout(400);
-  s = await st();
-  t('new round resets counters', !s.done && s.mistakes === 0 && s.hints === 0 && s.seconds === 0);
-  t('win dialog closed', await p.locator('#win[hidden]').count() === 1);
-
-  // --- settings persist across a reload, and so does a game in progress
-  await p.click('#btn-settings');
-  await p.click('#set-assist');
-  await p.click('#set-dark');
-  t('assist badges show', await p.locator('body.assist').count() === 1);
-  t('dark theme applied', await p.evaluate(() => document.documentElement.dataset.theme) === 'dark');
-  await p.click('#sizes button[data-size="9"]');
-  await p.waitForTimeout(400);
-  await p.evaluate(() => { game.sel = null; for (let i = 0; i < 5; i++) { const j = game.given.findIndex((g, k) => !g && !game.grid[k]); place(j, game.solution[j]); } });
-  const before = (await st()).grid.filter(Boolean).length;
-  await p.waitForTimeout(200);
-
-  await p.reload();
-  await p.waitForTimeout(600);
-  s = await st();
-  t('game in progress is restored', s.grid.filter(Boolean).length === before, `${s.grid.filter(Boolean).length} vs ${before}`);
-  t('settings survive a reload', await p.locator('body.assist').count() === 1);
-  t('assist badge is on the tile', (await p.locator('.cell .num').first().isVisible()) || true);
-
-
-  // --- 6x6 uses 3-wide, 2-tall boxes
-  await p.click('#sizes button[data-size="6"]');
-  await p.waitForTimeout(300);
-  t('6x6 board renders 36 cells', await p.locator('.cell').count() === 36);
-  t('6x6 draws box walls after every 3rd column', await p.locator('.cell.br').count() === 6);
-  t('6x6 draws box walls after every 2nd row', await p.locator('.cell.bb').count() === 12);
-
-  // --- a full but wrong board says so instead of silently doing nothing
+  /* ---------- the rules are enforced ---------- */
   await p.evaluate(() => {
-    settings.check = false;
-    for (let i = 0; i < game.grid.length; i++) if (!game.given[i]) { game.grid[i] = game.solution[i]; }
-    const loose = game.given.findIndex(g => !g);
-    game.grid[loose] = (game.solution[loose] % 6) + 1;
+    game.cell = new Array(16).fill(0);
+    setCell(0, 1); setCell(2, 1);           // same row
     render();
-    checkWin();
   });
+  t("two pups in one row are flagged", await p.locator(".cell.bad").count() === 2);
+
+  await p.evaluate(() => { game.cell = new Array(16).fill(0); setCell(0, 1); setCell(5, 1); render(); });
+  t("two pups touching diagonally are flagged", await p.locator(".cell.bad").count() === 2);
+
+  await p.evaluate(() => { game.cell = new Array(16).fill(0); render(); });
+
+  /* ---------- undo and clear ---------- */
+  await p.click('.cell[data-i="1"]');
+  await p.click("#t-undo");
+  s = await state();
+  t("undo takes the last mark back", s.cell[1] === 0);
+
+  await p.click('.cell[data-i="1"]');
+  await p.click('.cell[data-i="6"]');
+  await p.click("#t-reset");
+  s = await state();
+  t("clear empties the yard", s.cell.every((v) => v === 0));
+
+  /* ---------- hints ---------- */
+  await p.click("#t-hint");
   await p.waitForTimeout(200);
-  s = await st();
-  t('a full-but-wrong board does not win', s.done === false);
-  t('a full-but-wrong board says why',
-    (await p.locator('.toast').innerText()).includes('wrong spot'));
+  const hintText = await p.locator("#hintline").innerText();
+  s = await state();
+  t("a hint explains its reasoning", hintText.length > 25 && /yard|row|column/i.test(hintText));
+  t("a hint counts against the round", s.hints === 1);
+  t("the hint points at a square", await p.locator(".cell.tip").count() >= 1);
+  t("a hint does not place anything for you", s.cell.every((v) => v === 0));
 
-  // --- clearing records
-  await p.click('#btn-scores');
-  await p.click('#btn-wipe');
-  t('records clear without error', await p.locator('#score-list').innerText().then(x => x.includes('No best times')));
+  /* ---------- helper: cross out for me ---------- */
+  await p.click("#btn-settings");
+  await p.click("#set-auto");
+  await p.click("#btn-settings");
+  await p.evaluate(() => { game.cell = new Array(16).fill(0); render(); setCell(game.puzzle.solution[0], 1); });
+  s = await state();
+  t("the helper crosses off what a pup rules out",
+    s.cell.filter((v) => v === 2).length >= 5, `${s.cell.filter((v) => v === 2).length} crossed`);
+  await p.click("#btn-settings");
+  await p.click("#set-auto");
+  await p.click("#btn-settings");
 
-  await b.close();
-  console.log(errs.length ? '\nERRORS:\n' + errs.join('\n') : '\nno page errors');
-  process.exit(errs.length ? 1 : 0);
+  /* ---------- winning ---------- */
+  await p.evaluate(() => {
+    game.cell = new Array(game.N * game.N).fill(0);
+    for (const i of game.puzzle.solution) game.cell[i] = 1;
+    render(); checkWin();
+  });
+  await p.waitForTimeout(300);
+  s = await state();
+  t("a correct yard wins", s.done === true);
+  t("the win card appears", await p.locator("#win:not([hidden])").count() === 1);
+  t("the win card offers the next level",
+    (await p.locator("#win-next").innerText()).includes("Level 2"));
+
+  await p.click("#win-next");
+  await p.waitForTimeout(300);
+  s = await state();
+  t("next level opens, at the size its chapter promises",
+    s.level === 2 && s.N === await p.evaluate(() => LEVELS[1].N), `level ${s && s.level}, ${s && s.N}×${s && s.N}`);
+
+  await p.click("#btn-back");
+  await p.waitForTimeout(200);
+  t("level 1 now shows as solved", await p.locator(".lv.done").count() === 1);
+  t("level 2 is unlocked", await p.locator(".lv.next").count() === 1);
+  t("progress is counted", (await p.locator("#done-count").innerText()) === "1");
+
+  /* ---------- a wrong board does not win ---------- */
+  await p.click(".lv.next");
+  await p.waitForTimeout(300);
+  await p.evaluate(() => {
+    game.cell = new Array(game.N * game.N).fill(0);
+    // right count, wrong places: every pup down the first column
+    for (let r = 0; r < game.N; r++) game.cell[r * game.N] = 1;
+    render(); checkWin();
+  });
+  s = await state();
+  t("a board with the right number of pups in the wrong places does not win", !s.done);
+  t("and it says how many are clashing",
+    (await p.locator("#tally-warn").innerText()).includes("clashing"));
+  await p.click("#btn-back");
+
+  /* ---------- progress survives a reload ---------- */
+  await p.reload();
+  await p.waitForTimeout(400);
+  t("solved levels survive a reload", await p.locator(".lv.done").count() === 1);
+
+  /* ---------- free play ---------- */
+  await p.click("#tab-free");
+  await p.click('#free-size .chip >> nth=1');       // 6×6
+  await p.click("#btn-free-go");
+  await p.waitForTimeout(2500);
+  s = await state();
+  t("free play deals a fresh yard", s && s.N === 6 && !s.level);
+  t("its answer obeys the rules", await p.evaluate(() => {
+    const { N, region, solution } = game.puzzle;
+    const board = new Array(N * N).fill(0);
+    for (const i of solution) board[i] = 1;
+    return conflicts(N, region, board).size === 0 && solution.length === N;
+  }));
+  await p.click("#btn-back");
+
+  /* ---------- theme ---------- */
+  await p.click("#btn-settings");
+  await p.click("#set-dark");
+  t("dark mode applies", (await p.evaluate(() => document.documentElement.dataset.theme)) === "dark");
+
+  /* ---------- starting over ---------- */
+  await p.click("#btn-wipe");
+  await p.waitForTimeout(200);
+  t("starting over relocks the ladder",
+    (await p.locator(".lv.done").count()) === 0 &&
+    (await p.locator("#done-count").innerText()) === "0");
+
+  await browser.close();
+  if (errs.length) { failures++; console.log("\nPAGE ERRORS:\n" + errs.join("\n")); }
+  console.log(failures ? `\n${failures} failing check(s)` : "\nall checks passed, no page errors");
+  process.exit(failures ? 1 : 0);
 })();

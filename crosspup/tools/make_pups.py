@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Generate the nine Crosspup sprites from a single source puppy render.
+"""Generate the twelve Crosspup sprites from a single source puppy render.
 
 The source puppy wears a blue sweater. Fur sits around hue 15-30 deg, the
 sweater around hue 190-215 with high saturation, so the sweater can be
-isolated by hue and recoloured on its own. Each of the nine pups is the same
-good dog in a different jumper.
+isolated by hue and recoloured on its own. Each pup is the same good dog in
+a different jumper - one per region colour on the board.
 
     python3 tools/make_pups.py <source.png> [outdir]
 """
@@ -14,17 +14,20 @@ import os
 import sys
 from PIL import Image
 
-# name, hue (deg) or None, saturation multiplier, value gain, value lift
 PUPS = [
-    ("blueberry", 208, 1.00, 1.00, 0.00),
+    # name, hue (deg) or None, saturation multiplier, value gain, value lift
+    ("blueberry", 214, 1.00, 1.00, 0.00),
     ("cherry",      2, 1.00, 1.00, 0.00),
-    ("clover",    138, 0.95, 0.92, 0.00),
-    ("honey",      42, 1.00, 1.05, 0.06),
-    ("plum",      278, 0.92, 0.95, 0.00),
-    ("bubblegum", 328, 0.85, 1.05, 0.04),
-    ("mint",      170, 0.85, 1.02, 0.04),
-    ("marshmallow", None, 0.08, 1.12, 0.14),
-    ("charcoal",  None, 0.12, 0.44, 0.05),
+    ("clover",    140, 0.95, 0.92, 0.00),
+    ("honey",      45, 1.00, 1.05, 0.06),
+    ("plum",      282, 0.92, 0.95, 0.00),
+    ("bubblegum", 330, 0.85, 1.05, 0.04),
+    ("mint",      168, 0.85, 1.02, 0.04),
+    ("sky",       196, 0.50, 1.14, 0.12),
+    ("lime",       92, 0.92, 1.00, 0.02),
+    ("indigo",    250, 1.00, 0.70, 0.00),
+    ("coral",      14, 0.70, 1.10, 0.08),
+    ("slate",     210, 0.26, 0.62, 0.00),
 ]
 
 WORK = 256   # recolour resolution
