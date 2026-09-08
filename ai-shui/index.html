@@ -1,0 +1,887 @@
+<title>AI Shui</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@400;600;900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#EAEBE0; --raised:#F5F5EC; --sunk:#E0E2D4;
+    --ink:#191E17; --ink-2:#525B4E; --ink-3:#7C8577;
+    --rule:#C7CBB9; --rule-soft:#D8DBCB;
+    --wood:#4A7A4E; --fire:#A83C2C; --earth:#9C7048; --metal:#A98431; --water:#3D5C68;
+    --accent:var(--wood);
+    --good:#4A7A4E; --caution:#A98431; --poor:#A83C2C;
+    --cell-line:rgba(25,30,23,.3); --node-line:rgba(234,235,224,.55);
+    --shadow:0 1px 2px rgba(25,30,23,.08), 0 8px 24px -16px rgba(25,30,23,.35);
+    --display:"Zen Old Mincho","Noto Serif TC","Songti SC",serif;
+    --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+    --step:clamp(.9rem,.86rem + .2vw,1rem);
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F; --raised:#1B2019; --sunk:#0C0F0A;
+      --ink:#E7E8DC; --ink-2:#A2AB9B; --ink-3:#78826F;
+      --rule:#333B2F; --rule-soft:#262D22;
+      --wood:#82B383; --fire:#DE7863; --earth:#C89A6E; --metal:#D6B264; --water:#7FA9B8;
+      --good:#82B383; --caution:#D6B264; --poor:#DE7863;
+      --cell-line:rgba(231,232,220,.22); --node-line:rgba(12,15,10,.5);
+      --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 30px -18px rgba(0,0,0,.9);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F; --raised:#1B2019; --sunk:#0C0F0A;
+    --ink:#E7E8DC; --ink-2:#A2AB9B; --ink-3:#78826F;
+    --rule:#333B2F; --rule-soft:#262D22;
+    --wood:#82B383; --fire:#DE7863; --earth:#C89A6E; --metal:#D6B264; --water:#7FA9B8;
+    --good:#82B383; --caution:#D6B264; --poor:#DE7863;
+    --cell-line:rgba(231,232,220,.22); --node-line:rgba(12,15,10,.5);
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 30px -18px rgba(0,0,0,.9);
+  }
+
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  img{max-width:100%}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:var(--body); font-size:var(--step); line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  #grove{position:fixed; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; opacity:.5}
+  .shell{position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:28px 22px 88px}
+  h1,h2,h3{font-family:var(--display); font-weight:600; text-wrap:balance; margin:0; line-height:1.25}
+  p{margin:0}
+  button{font:inherit; color:inherit; cursor:pointer}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:2px}
+  @media (prefers-reduced-motion:reduce){ *{animation:none !important; transition:none !important} }
+
+  /* ---- masthead ---- */
+  .masthead{display:flex; align-items:flex-start; gap:18px; flex-wrap:wrap; padding-bottom:18px}
+  .seal{
+    flex:none; width:54px; height:54px; border-radius:3px; background:var(--fire);
+    color:#F5F5EC; font-family:var(--display); font-weight:900; font-size:20px;
+    display:grid; place-items:center; letter-spacing:.04em; line-height:1;
+    box-shadow:var(--shadow);
+  }
+  .seal span{display:block; text-align:center}
+  .wordmark h1{font-size:clamp(2rem,1.5rem + 2.2vw,3rem); font-weight:900; letter-spacing:-.015em}
+  .wordmark .hanzi{font-family:var(--display); color:var(--ink-3); font-size:1.05rem; letter-spacing:.35em; margin-left:.1em}
+  .tagline{color:var(--ink-2); max-width:56ch; margin-top:6px}
+  .node-rule{height:0; border-top:1px solid var(--rule); position:relative; margin:0 0 26px}
+  .node-rule::after{
+    content:""; position:absolute; left:0; top:-3px; width:38px; height:5px;
+    background:var(--accent); border-radius:1px;
+  }
+
+  /* ---- bench ---- */
+  .bench{display:grid; grid-template-columns:minmax(0,7fr) minmax(0,9fr); gap:26px; align-items:start}
+  @media (min-width:901px){ .bench > .panel{position:sticky; top:20px} }
+  @media (max-width:900px){ .bench{grid-template-columns:1fr} }
+
+  .panel{background:var(--raised); border:1px solid var(--rule-soft); border-radius:4px; box-shadow:var(--shadow)}
+  .panel > .panel-head{
+    display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+    padding:13px 16px; border-bottom:1px solid var(--rule-soft);
+  }
+  .eyebrow{
+    font-family:var(--mono); font-size:.7rem; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--ink-3);
+  }
+  .panel-head h2{font-size:1.05rem}
+
+  /* ---- the plate ---- */
+  .plate-wrap{padding:16px}
+  .plate{
+    position:relative; aspect-ratio:4/3; background:var(--sunk);
+    border:1px solid var(--rule); border-radius:3px; overflow:hidden;
+  }
+  .plate img, .plate svg.sketch{position:absolute; inset:0; width:100%; height:100%}
+  .plate img{object-fit:cover}
+  .bagua{position:absolute; inset:0; display:grid; grid-template:repeat(3,1fr)/repeat(3,1fr)}
+  .cell{
+    border:.5px solid var(--cell-line); position:relative; padding:5px;
+    display:flex; flex-direction:column; justify-content:flex-start; gap:3px;
+    background:transparent; text-align:left; transition:background .18s;
+  }
+  .plate.has-photo .cell{border-color:rgba(245,245,236,.5)}
+  .cell:hover, .cell.on{background:rgba(74,122,78,.26)}
+  .cell .tri{font-size:15px; line-height:1; color:var(--ink-2)}
+  .cell .nm{
+    font-family:var(--mono); font-size:.58rem; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--ink-2); line-height:1.25;
+  }
+  .plate.has-photo .cell .tri, .plate.has-photo .cell .nm{
+    color:#F5F5EC; text-shadow:0 1px 3px rgba(0,0,0,.9);
+  }
+  .cell .dot{
+    position:absolute; top:6px; right:6px; width:7px; height:7px; border-radius:50%;
+    box-shadow:0 0 0 1.5px rgba(0,0,0,.35);
+  }
+  .entry-mark{
+    position:absolute; z-index:2; background:var(--fire); color:#F5F5EC;
+    font-family:var(--mono); font-size:.56rem; letter-spacing:.14em; text-transform:uppercase;
+    padding:2px 7px; border-radius:2px; white-space:nowrap;
+  }
+  .plate-empty{
+    position:absolute; inset:0; display:grid; place-content:center; gap:6px; text-align:center;
+    padding:24px; pointer-events:none;
+  }
+  .gua-readout{
+    margin-top:12px; padding:11px 13px; border:1px solid var(--rule-soft); border-radius:3px;
+    background:var(--paper); min-height:78px;
+  }
+  .gua-readout .gt{display:flex; align-items:baseline; gap:9px; flex-wrap:wrap}
+  .gua-readout .gt strong{font-family:var(--display); font-size:1.02rem; font-weight:600}
+  .gua-readout .gt .tri{font-size:1.05rem; color:var(--accent)}
+  .gua-readout .gt .cn{font-family:var(--display); color:var(--ink-3)}
+  .gua-readout p{color:var(--ink-2); font-size:.87rem; margin-top:4px}
+
+  /* ---- controls ---- */
+  .controls{padding:16px; display:grid; gap:14px; border-top:1px solid var(--rule-soft)}
+  .field{display:grid; gap:6px}
+  .field > label{font-family:var(--mono); font-size:.68rem; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3)}
+  select{
+    font:inherit; font-size:.88rem; color:var(--ink); background:var(--paper);
+    border:1px solid var(--rule); border-radius:3px; padding:8px 10px; width:100%;
+  }
+  .segmented{display:grid; grid-template-columns:repeat(4,1fr); gap:0; border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+  .segmented button{
+    background:var(--paper); border:0; border-right:1px solid var(--rule); padding:8px 4px;
+    font-size:.76rem; color:var(--ink-2); transition:background .15s,color .15s;
+  }
+  .segmented button:last-child{border-right:0}
+  .segmented button[aria-pressed="true"]{background:var(--accent); color:#F5F5EC; font-weight:600}
+  .btn{
+    border:1px solid var(--accent); background:var(--accent); color:#F5F5EC;
+    border-radius:3px; padding:11px 16px; font-weight:600; font-size:.92rem;
+    display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%;
+  }
+  .btn[disabled]{opacity:.45; cursor:not-allowed}
+  .btn.ghost{background:transparent; color:var(--ink); border-color:var(--rule)}
+  .btn-row{display:grid; grid-template-columns:1fr auto; gap:9px}
+  .btn-row .btn.ghost{width:auto; padding:11px 14px}
+  .hint{font-size:.78rem; color:var(--ink-3)}
+  .hint.warn{color:var(--fire)}
+
+  /* ---- reading ---- */
+  .reading{display:grid; gap:20px}
+  .verdict{padding:18px}
+  .verdict .top{display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap}
+  .chi-dial{flex:none; width:104px; text-align:center}
+  .chi-dial svg{display:block; width:104px; height:104px}
+  .chi-dial .val{font-family:var(--mono); font-size:1.55rem; font-weight:500; fill:var(--ink)}
+  .chi-dial .cap{font-family:var(--mono); font-size:.62rem; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3); margin-top:2px}
+  .verdict .said{flex:1; min-width:210px}
+  .verdict .said .room{font-family:var(--display); font-size:1.22rem; margin-bottom:7px}
+  .verdict .said p{color:var(--ink-2)}
+  .sample-flag{
+    display:inline-flex; align-items:center; gap:6px; font-family:var(--mono); font-size:.62rem;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--earth);
+    border:1px dashed var(--earth); border-radius:2px; padding:2px 7px; margin-bottom:10px;
+  }
+
+  /* yin yang bar */
+  .yy{margin-top:16px; padding-top:14px; border-top:1px solid var(--rule-soft)}
+  .yy-track{position:relative; height:9px; border-radius:5px; background:linear-gradient(90deg,var(--water),var(--rule-soft) 50%,var(--fire)); margin:8px 0 5px}
+  .yy-pin{position:absolute; top:-4px; width:3px; height:17px; background:var(--ink); border-radius:2px; transform:translateX(-1.5px)}
+  .yy-legend{display:flex; justify-content:space-between; font-family:var(--mono); font-size:.66rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3)}
+
+  /* five elements as bamboo culms */
+  .culms{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; padding:18px 16px 14px}
+  .culm{display:grid; gap:8px; justify-items:center}
+  .culm .stalk{
+    position:relative; width:100%; max-width:46px; height:132px; border-radius:5px;
+    background:var(--rule-soft); border:1px solid var(--rule); overflow:hidden;
+  }
+  .culm .fill{position:absolute; left:0; right:0; bottom:0; z-index:1; transition:height .7s cubic-bezier(.2,.7,.2,1)}
+  .culm .stalk::before,.culm .stalk::after{
+    content:""; position:absolute; left:0; right:0; height:2px; z-index:2;
+    background:var(--node-line);
+  }
+  .culm .stalk::before{top:33.3%} .culm .stalk::after{top:66.6%}
+  .culm .glyph{font-family:var(--display); font-size:1.35rem; line-height:1}
+  .culm .lab{font-family:var(--mono); font-size:.62rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); text-align:center}
+  .culm .pct{font-family:var(--mono); font-size:.8rem; font-variant-numeric:tabular-nums}
+  .elem-note{padding:0 16px 16px; color:var(--ink-2); font-size:.88rem}
+
+  /* checks */
+  .checks{display:grid}
+  .check{display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:baseline; padding:12px 16px; border-bottom:1px solid var(--rule-soft)}
+  .check:last-child{border-bottom:0}
+  .stripe{width:3px; align-self:stretch; border-radius:2px}
+  .check h3{font-size:.94rem; font-family:var(--body); font-weight:600}
+  .check p{color:var(--ink-2); font-size:.86rem; margin-top:2px}
+  .pill{
+    font-family:var(--mono); font-size:.6rem; letter-spacing:.12em; text-transform:uppercase;
+    padding:3px 8px; border-radius:2px; white-space:nowrap; border:1px solid currentColor;
+  }
+
+  /* sha chi */
+  .sha{padding:14px 16px; display:grid; gap:11px}
+  .sha-item{display:grid; grid-template-columns:auto 1fr; gap:10px; align-items:start}
+  .arrow{color:var(--fire); font-size:1rem; line-height:1.4}
+  .sha-item strong{font-weight:600}
+  .sha-item span{color:var(--ink-2); font-size:.86rem}
+
+  /* remedies */
+  .cures{display:grid; gap:0}
+  .cure{display:grid; grid-template-columns:auto 1fr; gap:13px; padding:14px 16px; border-bottom:1px solid var(--rule-soft)}
+  .cure:last-child{border-bottom:0}
+  .cure .badge{
+    flex:none; width:30px; height:30px; border-radius:50%; display:grid; place-items:center;
+    font-family:var(--display); font-size:.95rem; border:1.5px solid currentColor;
+  }
+  .cure h3{font-size:.94rem; font-family:var(--body); font-weight:600; display:flex; gap:9px; align-items:baseline; flex-wrap:wrap}
+  .cure .effort{font-family:var(--mono); font-size:.6rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3)}
+  .cure p{color:var(--ink-2); font-size:.86rem; margin-top:3px}
+
+  /* thinking */
+  .thinking{padding:26px 16px; display:grid; gap:12px; justify-items:center; text-align:center}
+  .incense{width:2px; height:44px; background:linear-gradient(180deg,transparent,var(--ink-3)); position:relative}
+  .incense::after{content:""; position:absolute; top:-4px; left:-2px; width:6px; height:6px; border-radius:50%; background:var(--fire); animation:ember 1.9s ease-in-out infinite}
+  @keyframes ember{0%,100%{opacity:.35}50%{opacity:1}}
+  .thinking .stage{font-family:var(--mono); font-size:.72rem; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3)}
+
+  .colophon{margin-top:34px; padding-top:16px; border-top:1px solid var(--rule-soft); color:var(--ink-3); font-size:.79rem; max-width:70ch}
+  .colophon b{color:var(--ink-2); font-weight:600}
+</style>
+
+<canvas id="grove" aria-hidden="true"></canvas>
+
+<div class="shell">
+  <header class="masthead">
+    <div class="seal" aria-hidden="true"><span>風<br>水</span></div>
+    <div class="wordmark">
+      <h1>AI Shui <span class="hanzi">風水</span></h1>
+      <p class="tagline">Photograph a room. Get it read against the bagua, the five elements, and the flow of qi — with cures you can actually carry out this weekend.</p>
+    </div>
+  </header>
+  <div class="node-rule"></div>
+
+  <div class="bench">
+    <!-- ============ THE PLATE ============ -->
+    <section class="panel" aria-labelledby="plate-h">
+      <div class="panel-head">
+        <h2 id="plate-h">The Plate</h2>
+        <span class="eyebrow">羅盤 Luopan</span>
+      </div>
+      <div class="plate-wrap">
+        <div class="plate" id="plate">
+          <svg class="sketch" id="sketch" viewBox="0 0 400 300" fill="none" aria-label="Example room: a bedroom sketched in ink">
+            <rect width="400" height="300" fill="none"/>
+            <g stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" opacity=".55" color="var(--ink-2)">
+              <path d="M22 92 L200 44 L378 92"/>
+              <path d="M22 92 L22 250 M378 92 L378 250"/>
+              <path d="M22 250 L200 288 L378 250"/>
+              <path d="M200 44 L200 118"/>
+              <rect x="58" y="108" width="72" height="56" rx="2"/>
+              <path d="M58 122 L130 122"/>
+              <rect x="248" y="104" width="96" height="62" rx="2"/>
+              <path d="M296 104 L296 166 M248 135 L344 135"/>
+              <path d="M96 196 L96 262 L206 276 L206 206 Z"/>
+              <path d="M96 218 L206 228"/>
+              <path d="M258 214 L258 264 M300 214 L300 264 M258 264 L300 264"/>
+              <path d="M279 190 q-16 12 -21 30 q18 -4 21 -18 q3 14 21 18 q-5 -18 -21 -30 Z"/>
+              <path d="M279 190 L279 264"/>
+            </g>
+          </svg>
+          <img id="photo" alt="" hidden>
+          <div class="bagua" id="bagua"></div>
+          <div class="entry-mark" id="entryMark">Entry / 氣口</div>
+        </div>
+
+        <div class="gua-readout" id="guaReadout">
+          <div class="gt"><span class="tri">☯</span> <strong>Tap a square</strong> <span class="cn">太極</span></div>
+          <p>The bagua is laid over the frame from the wall that holds the door. Each square governs one department of a life — and whatever physically sits there is what you are feeding.</p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="field">
+          <label for="roomType">Room</label>
+          <select id="roomType">
+            <option value="bedroom">Bedroom</option>
+            <option value="living room">Living room</option>
+            <option value="home office">Home office / study</option>
+            <option value="kitchen">Kitchen</option>
+            <option value="entryway">Entryway / foyer</option>
+            <option value="dining room">Dining room</option>
+            <option value="bathroom">Bathroom</option>
+            <option value="child's room">Child's room</option>
+          </select>
+        </div>
+        <div class="field">
+          <label id="doorLab">Where is the main door in this photo?</label>
+          <div class="segmented" role="group" aria-labelledby="doorLab" id="doorSeg">
+            <button type="button" data-entry="bottom" aria-pressed="true">Behind me</button>
+            <button type="button" data-entry="left" aria-pressed="false">Left wall</button>
+            <button type="button" data-entry="top" aria-pressed="false">Far wall</button>
+            <button type="button" data-entry="right" aria-pressed="false">Right wall</button>
+          </div>
+          <p class="hint">Classical Black Sect practice anchors the bagua to the <em>mouth of qi</em> — the room's main entrance — not to magnetic north.</p>
+        </div>
+        <div class="field">
+          <label for="fileIn">Photograph</label>
+          <input id="fileIn" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden>
+          <div class="btn-row">
+            <button class="btn ghost" type="button" id="pickBtn">Take or choose a photo</button>
+            <button class="btn ghost" type="button" id="clearBtn" hidden>Clear</button>
+          </div>
+        </div>
+        <button class="btn" type="button" id="readBtn" disabled>Read this room</button>
+        <button class="btn ghost" type="button" id="stopBtn" hidden>Stop reading</button>
+        <p class="hint" id="status">Add a photo to begin. An example reading is shown alongside.</p>
+      </div>
+    </section>
+
+    <!-- ============ THE READING ============ -->
+    <div class="reading" id="reading"></div>
+  </div>
+
+  <p class="colophon">
+    <b>How to hold this.</b> Feng shui (風水, “wind–water”) is a several-thousand-year-old Chinese
+    practice of arranging space; this app applies the Western/Black-Sect bagua overlay, the wu xing
+    five-element cycle, and standard qi-flow checks to what is visible in one photograph. It reads a
+    frame, not a floor plan — it cannot see your compass heading, your birth chart, the year's flying
+    stars, or the street outside. Treat it as a well-informed second opinion on furniture, light and
+    clutter, not as a substitute for a practitioner who walks the whole home.
+  </p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------------------------------------------------------
+     The eight trigrams + the Tai Qi centre. Names, glyphs and
+     governing element are the standard Black-Sect bagua.
+  --------------------------------------------------------------- */
+  var GUA = {
+    career:    {tri:"☵", cn:"坎", pinyin:"Kan",  name:"Career & Path",        el:"water", blurb:"The road out and forward. Water sits here: keep it flowing, dark, and unobstructed."},
+    knowledge: {tri:"☶", cn:"艮", pinyin:"Gen",  name:"Knowledge & Stillness",el:"earth", blurb:"The mountain. Study, meditation, self-cultivation — this corner wants weight and quiet."},
+    family:    {tri:"☳", cn:"震", pinyin:"Zhen", name:"Family & Ancestry",    el:"wood",  blurb:"Thunder. Elders, roots, and old health patterns. Living plants and family photographs feed it."},
+    wealth:    {tri:"☴", cn:"巽", pinyin:"Xun",  name:"Wealth & Abundance",   el:"wood",  blurb:"Wind. The far-left corner from the door. Upward growth, purple and gold, nothing broken or dead."},
+    fame:      {tri:"☲", cn:"離", pinyin:"Li",   name:"Fame & Reputation",    el:"fire",  blurb:"Fire. How you are seen. Wants light, red, triangles, awards — and no standing water."},
+    love:      {tri:"☷", cn:"坤", pinyin:"Kun",  name:"Love & Partnership",   el:"earth", blurb:"Receptive earth. Pairs, not singles: two lamps, two pillows, two chairs. Never one of anything."},
+    children:  {tri:"☱", cn:"兑", pinyin:"Dui",  name:"Creativity & Children",el:"metal", blurb:"The lake. Play, offspring, unfinished work. Metal, round shapes, white, and joy."},
+    helpful:   {tri:"☰", cn:"乾", pinyin:"Qian", name:"Helpful People & Travel", el:"metal", blurb:"Heaven. Mentors, benefactors, journeys. Grey, silver, and images of places you intend to go."},
+    health:    {tri:"☯", cn:"太極", pinyin:"Tai Qi", name:"Health & Centre", el:"earth", blurb:"The hub every other gua touches. Keep the centre of the room open — clutter here disorders all nine."}
+  };
+  /* Base layout with the entry wall along the BOTTOM edge of the frame. */
+  var BASE = [
+    ["wealth","fame","love"],
+    ["family","health","children"],
+    ["knowledge","career","helpful"]
+  ];
+  var ELEMENT = {
+    wood:  {cn:"木", label:"Wood",  govern:"growth"},
+    fire:  {cn:"火", label:"Fire",  govern:"visibility"},
+    earth: {cn:"土", label:"Earth", govern:"stability"},
+    metal: {cn:"金", label:"Metal", govern:"precision"},
+    water: {cn:"水", label:"Water", govern:"flow"}
+  };
+  var ELEMENT_ORDER = ["wood","fire","earth","metal","water"];
+
+  function rotCW(m){
+    var r=[[0,0,0],[0,0,0],[0,0,0]];
+    for(var i=0;i<3;i++) for(var j=0;j<3;j++) r[i][j]=m[2-j][i];
+    return r;
+  }
+  /* One clockwise turn moves the bottom row onto the left column. */
+  var TURNS = {bottom:0, left:1, top:2, right:3};
+  function layoutFor(entry){
+    var m=BASE, n=TURNS[entry]||0;
+    for(var k=0;k<n;k++) m=rotCW(m);
+    return m;
+  }
+
+  /* --------------------------- state --------------------------- */
+  var state = {
+    entry:"bottom",
+    file:null,
+    data:null,
+    isSample:true,
+    selected:null,
+    busy:false
+  };
+
+  var $ = function(id){ return document.getElementById(id); };
+  var plate=$("plate"), baguaEl=$("bagua"), entryMark=$("entryMark"),
+      photoEl=$("photo"), sketchEl=$("sketch"), readoutEl=$("guaReadout"),
+      readingEl=$("reading"), statusEl=$("status"), readBtn=$("readBtn"),
+      stopBtn=$("stopBtn"), pickBtn=$("pickBtn"), clearBtn=$("clearBtn"),
+      fileIn=$("fileIn"), roomType=$("roomType"), doorSeg=$("doorSeg");
+
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];
+    });
+  }
+  function clamp(n,lo,hi){ n=Number(n); if(!isFinite(n)) n=lo; return Math.max(lo,Math.min(hi,n)); }
+  function band(score){ return score>=70?"good":score>=45?"caution":"poor"; }
+
+  /* ------------------------ the example ------------------------ */
+  var SAMPLE = {
+    room:"A north-facing bedroom: bed against the left wall, window on the far wall, desk wedged in the far-right corner.",
+    chiScore:58,
+    verdict:"The room is generous with light and the bed frame is solid, but you are sleeping out of the commanding position with your feet toward the door — the single change that would move this reading most. Wood is doing all the work here while metal and water are effectively absent, which reads as growth without structure or rest.",
+    yinYang:-24,
+    yinYangNote:"Slightly too yin for a room that is also used for work: soft textiles, low light in three corners, and no reflective or hard surfaces to answer them.",
+    elements:{wood:78, fire:44, earth:52, metal:16, water:9},
+    elementNote:"Two large plants and an oak frame make wood dominant. Wood drains water and is cut by metal — with neither present, there is nothing to check the growth or give the room edges. Add metal first; it also produces the missing water.",
+    guas:{
+      wealth:{score:38, present:"A laundry pile and a dead trailing plant on the sill.", note:"The far-left corner is the wealth gua and it currently holds the room's only dead thing. Remove the plant before anything else — dead wood in Xun is the classic leak."},
+      fame:{score:71, present:"Window, full daylight, one framed print.", note:"Li wants light and it has it. The print's cool blue tone is water over fire; a warmer image would serve better."},
+      love:{score:44, present:"A single nightstand, one lamp, a stack of books.", note:"Kun governs partnership and everything here is singular. Pair the nightstand and the lamp."},
+      family:{score:66, present:"Bookcase and a healthy fiddle-leaf fig.", note:"Zhen is wood and this is well fed. Nothing to change."},
+      health:{score:47, present:"An open rug, but a laundry basket has drifted into the middle.", note:"The Tai Qi should stay clear. Move the basket to the perimeter and the whole map breathes."},
+      children:{score:52, present:"Closed closet doors.", note:"Dui is metal and neutral here. A round white bowl or a small chime would activate it cheaply."},
+      knowledge:{score:61, present:"The desk, facing the wall.", note:"Gen suits study, so the desk is in the right gua — but facing a blank wall puts your back to the room."},
+      career:{score:55, present:"Open floor by the doorway.", note:"Kan is clear, which is correct. Resist storing anything here; this is the throat of the room."},
+      helpful:{score:49, present:"A tall wardrobe, corner pointing inward.", note:"Qian is blocked by a heavy edge aimed at the bed — see the sha chi below."}
+    },
+    checks:[
+      {name:"Commanding position (bed)", verdict:"poor", detail:"The bed faces the door head-on with the feet pointing out — the 'coffin position'. Move it so you can see the door without being in line with it, ideally diagonal to it with a solid wall behind the headboard."},
+      {name:"Mouth of qi (the door)", verdict:"good", detail:"The door swings fully open with nothing behind it and the floor in front is clear. Qi enters cleanly."},
+      {name:"Solid backing", verdict:"caution", detail:"The headboard sits under a window rather than against solid wall. If the bed cannot move, a heavy upholstered headboard and a lined blind will stand in for the missing mountain."},
+      {name:"Qi flow & pathways", verdict:"caution", detail:"There is a straight unbroken run from the door to the window, which lets qi rush through rather than meander. Something soft and low placed midway — an ottoman, a rug edge — slows it."},
+      {name:"Clutter & storage", verdict:"caution", detail:"Under-bed storage and a floor pile in the wealth corner. Feng shui treats under-bed space as your subconscious: keep it empty, or keep only soft bedding there."},
+      {name:"Light & air", verdict:"good", detail:"One large operable window, unobstructed, plus two living plants. The two nourishments are present."},
+      {name:"Overhead beams", verdict:"good", detail:"Flat ceiling, no beam or sloped soffit cutting across the sleeping body."},
+      {name:"Mirrors", verdict:"good", detail:"No mirror faces the bed. Keep it that way — a mirror reflecting a sleeper is the most-cited disturbance in bedroom feng shui."}
+    ],
+    sha:[
+      {source:"Wardrobe corner", detail:"The exposed 90° edge of the wardrobe points directly at the pillow. This is a 'poison arrow' — soften it with a trailing plant on top, a fabric panel, or by turning the piece 15°."},
+      {source:"Door-to-window alignment", detail:"Door, foot of bed and window sit on one straight line. Qi travels it like a corridor and takes rest with it."},
+      {source:"Open shelving above the desk", detail:"Downward-pointing shelf edges over a seated head create low-grade pressure. Doors or baskets resolve it."}
+    ],
+    cures:[
+      {title:"Move the bed out of the door line", element:"earth", effort:"weekend", detail:"Shift the bed to the far-left wall so the doorway is visible diagonally and no longer aimed at your feet. This one move fixes the commanding position, the sha chi from the wardrobe, and the door-window corridor at once."},
+      {title:"Clear the wealth corner and replace the dead plant", element:"wood", effort:"quick", detail:"Remove the dead trailing plant and the laundry pile. Replace with one healthy upward-growing plant — jade, money tree — in a purple or gold pot."},
+      {title:"Introduce metal", element:"metal", effort:"quick", detail:"A round mirror on the closet door, a metal-framed lamp, or a small brass bowl on the nightstand. Metal both cuts the overgrown wood and generates the water this room has none of."},
+      {title:"Pair everything beside the bed", element:"earth", effort:"quick", detail:"Two nightstands, two lamps, two pillows. Kun is the partnership gua and it reads singles literally."},
+      {title:"Turn the desk to face into the room", element:"metal", effort:"weekend", detail:"Even a 45° turn so your back is to a wall rather than the doorway. If the desk cannot move, place a small mirror to show the door behind you."},
+      {title:"Empty under the bed", element:"water", effort:"weekend", detail:"Clear the boxes so qi can circulate around the sleeping body. Soft bedding only, or nothing."}
+    ]
+  };
+
+  /* --------------------------- plate --------------------------- */
+  function renderBagua(){
+    var grid = layoutFor(state.entry);
+    baguaEl.innerHTML = "";
+    for(var i=0;i<3;i++){
+      for(var j=0;j<3;j++){
+        var key = grid[i][j], g = GUA[key];
+        var cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "cell" + (state.selected===key ? " on" : "");
+        cell.setAttribute("data-gua", key);
+        cell.setAttribute("aria-label", g.name);
+        var found = state.data && state.data.guas && state.data.guas[key];
+        var dot = "";
+        if(found && typeof found.score === "number"){
+          dot = '<span class="dot" style="background:var(--'+band(found.score)+')"></span>';
+        }
+        cell.innerHTML = '<span class="tri">'+g.tri+'</span>'+dot+
+                         '<span class="nm">'+esc(g.name.split(" & ")[0])+'</span>';
+        baguaEl.appendChild(cell);
+      }
+    }
+    entryMark.removeAttribute("style");
+    var s = entryMark.style;
+    if(state.entry==="bottom"){ s.left="50%"; s.bottom="6px"; s.transform="translateX(-50%)"; }
+    else if(state.entry==="top"){ s.left="50%"; s.top="6px"; s.transform="translateX(-50%)"; }
+    else if(state.entry==="left"){ s.left="6px"; s.top="50%"; s.transform="translateY(-50%)"; }
+    else { s.right="6px"; s.top="50%"; s.transform="translateY(-50%)"; }
+  }
+
+  function showGua(key){
+    state.selected = key;
+    var g = GUA[key];
+    var found = state.data && state.data.guas && state.data.guas[key];
+    var html = '<div class="gt"><span class="tri" style="color:var(--'+g.el+')">'+g.tri+'</span>'+
+               '<strong>'+esc(g.name)+'</strong>'+
+               '<span class="cn">'+g.cn+' · '+esc(g.pinyin)+'</span>'+
+               '<span class="eyebrow" style="color:var(--'+g.el+')">'+ELEMENT[g.el].label+'</span></div>';
+    if(found){
+      html += '<p><strong style="color:var(--ink)">In your photo:</strong> '+esc(found.present)+'</p>';
+      html += '<p>'+esc(found.note)+'</p>';
+    } else {
+      html += '<p>'+g.blurb+'</p>';
+    }
+    readoutEl.innerHTML = html;
+    renderBagua();
+  }
+
+  baguaEl.addEventListener("click", function(e){
+    var c = e.target.closest(".cell");
+    if(c) showGua(c.getAttribute("data-gua"));
+  });
+
+  doorSeg.addEventListener("click", function(e){
+    var b = e.target.closest("button[data-entry]");
+    if(!b) return;
+    state.entry = b.getAttribute("data-entry");
+    Array.prototype.forEach.call(doorSeg.querySelectorAll("button"), function(x){
+      x.setAttribute("aria-pressed", String(x === b));
+    });
+    renderBagua();
+    if(state.selected) showGua(state.selected);
+  });
+
+  /* --------------------------- photo --------------------------- */
+  pickBtn.addEventListener("click", function(){ fileIn.click(); });
+  fileIn.addEventListener("change", function(){
+    var f = fileIn.files && fileIn.files[0];
+    if(!f) return;
+    if(f.size > 20*1024*1024){
+      statusEl.textContent = "That image is over 20 MB. Choose a smaller one or let your camera compress it.";
+      statusEl.className = "hint warn";
+      return;
+    }
+    state.file = f;
+    photoEl.src = URL.createObjectURL(f);
+    photoEl.hidden = false;
+    sketchEl.hidden = true;
+    plate.classList.add("has-photo");
+    clearBtn.hidden = false;
+    readBtn.disabled = false;
+    pickBtn.textContent = "Use a different photo";
+    statusEl.className = "hint";
+    statusEl.textContent = "Set the room and the door wall, then read it.";
+  });
+  clearBtn.addEventListener("click", function(){
+    state.file = null; fileIn.value = "";
+    if(photoEl.src) URL.revokeObjectURL(photoEl.src);
+    photoEl.hidden = true; photoEl.removeAttribute("src");
+    sketchEl.hidden = false;
+    plate.classList.remove("has-photo");
+    clearBtn.hidden = true;
+    readBtn.disabled = true;
+    pickBtn.textContent = "Take or choose a photo";
+    state.data = null; state.isSample = true;
+    renderReading(SAMPLE, true);
+    renderBagua();
+    statusEl.className = "hint";
+    statusEl.textContent = "Add a photo to begin. An example reading is shown alongside.";
+  });
+
+  /* ------------------------ the reading ------------------------ */
+  function dial(score){
+    var r = 44, c = 2*Math.PI*r, on = c*clamp(score,0,100)/100;
+    return '<div class="chi-dial"><svg viewBox="0 0 104 104" aria-hidden="true">'+
+      '<circle cx="52" cy="52" r="'+r+'" fill="none" stroke="var(--rule-soft)" stroke-width="7"/>'+
+      '<circle cx="52" cy="52" r="'+r+'" fill="none" stroke="var(--'+band(score)+')" stroke-width="7"'+
+      ' stroke-linecap="round" stroke-dasharray="'+on.toFixed(1)+' '+c.toFixed(1)+'"'+
+      ' transform="rotate(-90 52 52)"/>'+
+      '<text class="val" x="52" y="59" text-anchor="middle">'+Math.round(clamp(score,0,100))+'</text>'+
+      '</svg><div class="cap">Qi score</div></div>';
+  }
+
+  function culms(elements, note){
+    var html = '<section class="panel"><div class="panel-head"><h2>Five Elements</h2>'+
+               '<span class="eyebrow">五行 Wu Xing</span></div><div class="culms">';
+    ELEMENT_ORDER.forEach(function(k){
+      var v = clamp(elements && elements[k], 0, 100);
+      var m = ELEMENT[k];
+      html += '<div class="culm">'+
+        '<div class="stalk"><div class="fill" style="height:'+v+'%;background:var(--'+k+')"></div></div>'+
+        '<div class="glyph" style="color:var(--'+k+')">'+m.cn+'</div>'+
+        '<div class="pct">'+Math.round(v)+'</div>'+
+        '<div class="lab">'+m.label+'<br>'+m.govern+'</div>'+
+      '</div>';
+    });
+    html += '</div><p class="elem-note">'+esc(note)+'</p></section>';
+    return html;
+  }
+
+  function renderReading(d, isSample){
+    var yy = clamp(d.yinYang, -100, 100);
+    var html = "";
+
+    html += '<section class="panel verdict">'+
+      (isSample ? '<span class="sample-flag">Example reading</span>' : '')+
+      '<div class="top">'+dial(d.chiScore)+
+      '<div class="said"><div class="room">'+esc(d.room)+'</div><p>'+esc(d.verdict)+'</p></div></div>'+
+      '<div class="yy"><span class="eyebrow">Yin 陰 — Yang 陽 balance</span>'+
+      '<div class="yy-track"><div class="yy-pin" style="left:'+((yy+100)/2)+'%"></div></div>'+
+      '<div class="yy-legend"><span>Yin · still, soft, dark</span><span>Yang · bright, hard, active</span></div>'+
+      '<p style="color:var(--ink-2);font-size:.86rem;margin-top:9px">'+esc(d.yinYangNote)+'</p></div></section>';
+
+    html += culms(d.elements, d.elementNote);
+
+    if(d.checks && d.checks.length){
+      html += '<section class="panel"><div class="panel-head"><h2>The Standard Checks</h2>'+
+              '<span class="eyebrow">'+d.checks.length+' examined</span></div><div class="checks">';
+      d.checks.forEach(function(c){
+        var v = (c.verdict||"unknown").toLowerCase();
+        var col = v==="good"?"good":v==="poor"?"poor":v==="caution"?"caution":"ink-3";
+        html += '<div class="check"><span class="stripe" style="background:var(--'+col+')"></span>'+
+          '<div><h3>'+esc(c.name)+'</h3><p>'+esc(c.detail)+'</p></div>'+
+          '<span class="pill" style="color:var(--'+col+')">'+esc(v)+'</span></div>';
+      });
+      html += '</div></section>';
+    }
+
+    if(d.sha && d.sha.length){
+      html += '<section class="panel"><div class="panel-head"><h2>Sha Qi</h2>'+
+              '<span class="eyebrow">煞氣 Poison arrows</span></div><div class="sha">';
+      d.sha.forEach(function(s){
+        html += '<div class="sha-item"><span class="arrow">➤</span>'+
+                '<div><strong>'+esc(s.source)+'</strong> — <span>'+esc(s.detail)+'</span></div></div>';
+      });
+      html += '</div></section>';
+    }
+
+    if(d.cures && d.cures.length){
+      html += '<section class="panel"><div class="panel-head"><h2>Cures</h2>'+
+              '<span class="eyebrow">化解 In priority order</span></div><div class="cures">';
+      d.cures.forEach(function(c){
+        var el = ELEMENT[c.element] ? c.element : "earth";
+        html += '<div class="cure"><span class="badge" style="color:var(--'+el+')">'+ELEMENT[el].cn+'</span>'+
+          '<div><h3>'+esc(c.title)+'<span class="effort">'+esc(c.effort||"")+'</span></h3>'+
+          '<p>'+esc(c.detail)+'</p></div></div>';
+      });
+      html += '</div></section>';
+    }
+
+    if(!isSample){
+      html += '<div class="btn-row" style="grid-template-columns:1fr"><button class="btn ghost" type="button" id="saveBtn">Save this reading</button></div>';
+    }
+
+    readingEl.innerHTML = html;
+    var sb = $("saveBtn");
+    if(sb) sb.addEventListener("click", saveReading);
+  }
+
+  /* -------------------------- sampling -------------------------- */
+  var STAGES = ["Orienting the bagua","Reading the light","Tracing the qi","Weighing the elements","Checking the commanding position","Looking for poison arrows","Drafting cures"];
+  var stageTimer = null, ctl = null, sampleFn = null, canImages = false;
+
+  function thinking(on){
+    state.busy = on;
+    readBtn.disabled = on || !state.file;
+    stopBtn.hidden = !on;
+    pickBtn.disabled = on;
+    if(on){
+      var i = 0;
+      readingEl.innerHTML = '<section class="panel thinking"><div class="incense"></div>'+
+        '<div class="stage" id="stageTxt">'+STAGES[0]+'…</div>'+
+        '<p class="hint" style="max-width:34ch">A full reading takes half a minute or so. Your photo is sent to Claude on your own account.</p></section>';
+      stageTimer = setInterval(function(){
+        i = (i+1) % STAGES.length;
+        var t = $("stageTxt"); if(t) t.textContent = STAGES[i]+"…";
+      }, 3400);
+    } else {
+      if(stageTimer){ clearInterval(stageTimer); stageTimer = null; }
+    }
+  }
+
+  function buildPrompt(){
+    var grid = layoutFor(state.entry);
+    var where = {bottom:"the near edge (the photographer is standing in the doorway)",
+                 top:"the far wall", left:"the left wall", right:"the right wall"}[state.entry];
+    var map = "";
+    var rows = ["top row of the frame","middle row of the frame","bottom row of the frame"];
+    for(var i=0;i<3;i++){
+      map += "- " + rows[i] + ", left to right: " +
+             grid[i].map(function(k){ return GUA[k].name + " (" + GUA[k].pinyin + " " + GUA[k].cn + ", " + GUA[k].el + ")"; }).join("; ") + "\n";
+    }
+    return [
+      "You are an experienced feng shui consultant. Read the attached photograph of a " + roomType.value + " and give a rigorous, specific assessment. Judge only what is actually visible; where something cannot be seen, say so rather than inventing it.",
+      "",
+      "BAGUA ANCHOR. The room's main door is on " + where + ". Anchoring the Black-Sect bagua to that entrance gives this 3x3 map over the frame:",
+      map,
+      "ASSESS ALL OF THE FOLLOWING:",
+      "1. Commanding position of the room's primary furniture (bed / desk / stove / main seating): can the occupant see the door without being in line with it, with solid backing?",
+      "2. The mouth of qi: the door, its swing, and what sits in front of it.",
+      "3. Qi flow: pathways, straight rushing runs (door aligned with window or another door), dead corners where qi stagnates.",
+      "4. Sha qi / poison arrows: exposed furniture corners, structural columns, open shelf edges, sharp plant leaves aimed at where a body rests.",
+      "5. Overhead pressure: beams, sloped ceilings, soffits, cabinets above a head.",
+      "6. Clutter, and specifically under-bed or under-desk storage.",
+      "7. Light and air — the two nourishments — plus living plants and any dead or broken objects.",
+      "8. Mirrors: what they reflect, and whether one faces a bed.",
+      "9. Water features, electronics, and colour temperature.",
+      "10. Five-element (wu xing) balance via colours, materials and shapes, read through the productive and controlling cycles.",
+      "11. Yin/yang balance appropriate to this room's function.",
+      "12. Each of the nine guas above: what physically occupies that ninth of the frame.",
+      "",
+      "Reply with ONLY a JSON object of exactly this shape:",
+      '{"room":"one sentence naming what is in the photo and the layout",',
+      '"chiScore":0-100,"verdict":"2-4 sentences, lead with the single highest-leverage problem",',
+      '"yinYang":-100..100 (negative = too yin, positive = too yang),"yinYangNote":"one or two sentences",',
+      '"elements":{"wood":0-100,"fire":0-100,"earth":0-100,"metal":0-100,"water":0-100},',
+      '"elementNote":"2-3 sentences naming which cycle is out of balance and what it means here",',
+      '"guas":{"career":{"score":0-100,"present":"what occupies this ninth","note":"one or two sentences"}, ... all nine keys: career, knowledge, family, wealth, fame, love, children, helpful, health},',
+      '"checks":[{"name":"...","verdict":"good|caution|poor|unknown","detail":"one or two sentences"} x 6-9],',
+      '"sha":[{"source":"...","detail":"..."} x 0-4],',
+      '"cures":[{"title":"imperative, specific","element":"wood|fire|earth|metal|water","detail":"1-2 sentences, concrete and doable","effort":"quick|weekend|project"} x 4-7, most impactful first]}',
+      "",
+      "Use the vocabulary of the practice (qi, sha qi, the guas by name, the wu xing cycles) but keep every recommendation physical and actionable. No preamble, no markdown fence."
+    ].join("\n");
+  }
+
+  readBtn.addEventListener("click", function(){
+    if(!state.file || !sampleFn || state.busy) return;
+    ctl = new AbortController();
+    thinking(true);
+    statusEl.className = "hint";
+    statusEl.textContent = "Reading…";
+    sampleFn.json(buildPrompt(), {
+      images: state.file,
+      signal: ctl.signal,
+      modelTier: "default",
+      cache: {gcTime: 30*60*1000}
+    }).then(function(d){
+      thinking(false);
+      if(!d || typeof d !== "object"){ throw {code:"invalid_json"}; }
+      d.guas = d.guas || {};
+      state.data = d; state.isSample = false;
+      renderReading(d, false);
+      renderBagua();
+      if(state.selected) showGua(state.selected);
+      statusEl.textContent = "Read complete. Tap any square on the plate for that gua.";
+    }).catch(function(e){
+      thinking(false);
+      var code = e && e.code;
+      var msg = {
+        not_granted:"You declined the request, so nothing was sent. Reload the page to be asked again.",
+        rate_limited:"Too many readings at once. Wait a minute and try again.",
+        cancelled:"Reading stopped.",
+        invalid_json:"The reading came back malformed. Try again, or use a photo that shows more of the room.",
+        images_unavailable:"This view cannot send images to Claude.",
+        image_rejected:"That image could not be read. Try a JPEG or PNG under 20 MB.",
+        prompt_too_large:"The request was too large. Try again."
+      }[code] || "The reading did not complete. Try again.";
+      statusEl.className = code==="cancelled" ? "hint" : "hint warn";
+      statusEl.textContent = msg;
+      renderReading(state.data || SAMPLE, !state.data);
+    });
+  });
+
+  stopBtn.addEventListener("click", function(){ if(ctl) ctl.abort(); });
+
+  /* -------------------------- saving -------------------------- */
+  function saveReading(){
+    var d = state.data; if(!d) return;
+    var L = [];
+    L.push("AI SHUI — FENG SHUI READING");
+    L.push("Room: " + roomType.value + "   Qi score: " + Math.round(clamp(d.chiScore,0,100)) + "/100");
+    L.push("");
+    L.push(d.room); L.push(""); L.push(d.verdict); L.push("");
+    L.push("YIN/YANG: " + d.yinYang + " — " + d.yinYangNote); L.push("");
+    L.push("FIVE ELEMENTS");
+    ELEMENT_ORDER.forEach(function(k){
+      L.push("  " + ELEMENT[k].label + " " + ELEMENT[k].cn + ": " + Math.round(clamp(d.elements&&d.elements[k],0,100)));
+    });
+    L.push("  " + d.elementNote); L.push("");
+    L.push("BAGUA");
+    Object.keys(GUA).forEach(function(k){
+      var g = d.guas && d.guas[k]; if(!g) return;
+      L.push("  " + GUA[k].name + " (" + GUA[k].tri + " " + GUA[k].pinyin + ") — " + g.score + "/100");
+      L.push("    " + g.present);
+      L.push("    " + g.note);
+    });
+    L.push("");
+    L.push("CHECKS");
+    (d.checks||[]).forEach(function(c){ L.push("  [" + String(c.verdict).toUpperCase() + "] " + c.name + " — " + c.detail); });
+    if((d.sha||[]).length){ L.push(""); L.push("SHA QI"); (d.sha||[]).forEach(function(s){ L.push("  " + s.source + " — " + s.detail); }); }
+    L.push(""); L.push("CURES");
+    (d.cures||[]).forEach(function(c,i){ L.push("  " + (i+1) + ". [" + c.element + " / " + c.effort + "] " + c.title); L.push("     " + c.detail); });
+    var text = L.join("\n");
+    claude.use("downloads").then(function(dl){
+      if(!dl){ statusEl.className="hint warn"; statusEl.textContent="Saving is not available in this view."; return; }
+      return dl.save({filename:"ai-shui-reading.txt", data:text}).then(function(){
+        statusEl.className="hint"; statusEl.textContent="Reading saved.";
+      });
+    }).catch(function(){
+      statusEl.className="hint warn"; statusEl.textContent="The file was not saved.";
+    });
+  }
+
+  /* ------------------------ bamboo grove ------------------------ */
+  var cv = $("grove"), ctx = cv.getContext("2d");
+  function drawGrove(){
+    var w = cv.clientWidth, h = cv.clientHeight, dpr = Math.min(window.devicePixelRatio||1, 2);
+    cv.width = w*dpr; cv.height = h*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    var ink = getComputedStyle(document.documentElement).getPropertyValue("--wood").trim() || "#4A7A4E";
+    ctx.strokeStyle = ink; ctx.fillStyle = ink;
+    var seed = 7;
+    function rnd(){ seed = (seed*1103515245 + 12345) & 0x7fffffff; return seed/0x7fffffff; }
+    var n = Math.max(5, Math.round(w/165));
+    for(var s=0; s<n; s++){
+      var x = (s + 0.35 + rnd()*0.3) * (w/n);
+      var wid = 9 + rnd()*15;
+      var lean = (rnd()-0.5)*38;
+      ctx.globalAlpha = 0.055 + rnd()*0.05;
+      ctx.lineWidth = 1.1;
+      var segs = 6 + Math.floor(rnd()*4), segH = h/segs;
+      for(var k=0;k<segs;k++){
+        var y0 = h - k*segH, y1 = y0 - segH + 7;
+        var dx0 = lean*(k/segs), dx1 = lean*((k+1)/segs);
+        ctx.beginPath();
+        ctx.moveTo(x+dx0, y0); ctx.lineTo(x+dx1, y1);
+        ctx.lineTo(x+dx1+wid, y1); ctx.lineTo(x+dx0+wid, y0);
+        ctx.closePath();
+        ctx.globalAlpha = 0.05 + rnd()*0.035;
+        ctx.fill();
+        ctx.globalAlpha = 0.12;
+        ctx.stroke();
+      }
+      /* leaves at two nodes */
+      for(var L=0; L<3; L++){
+        var ly = h - (2 + rnd()*(segs-2))*segH;
+        var dir = rnd() < 0.5 ? -1 : 1;
+        var lx = x + lean*((h-ly)/h) + (dir<0 ? 0 : wid);
+        var len = 46 + rnd()*54, drop = 16 + rnd()*26;
+        ctx.globalAlpha = 0.07;
+        ctx.beginPath();
+        ctx.moveTo(lx, ly);
+        ctx.quadraticCurveTo(lx + dir*len*0.55, ly - drop*0.6, lx + dir*len, ly + drop*0.35);
+        ctx.quadraticCurveTo(lx + dir*len*0.5, ly + drop*0.55, lx, ly);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* ---------------------------- boot ---------------------------- */
+  renderBagua();
+  renderReading(SAMPLE, true);
+  drawGrove();
+
+  var rt = null;
+  window.addEventListener("resize", function(){ clearTimeout(rt); rt = setTimeout(drawGrove, 180); });
+  if(window.matchMedia){
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if(mq.addEventListener) mq.addEventListener("change", drawGrove);
+  }
+
+  if(window.claude && typeof window.claude.use === "function"){
+    claude.use("sample").then(function(fn){
+      if(!fn){ throw new Error("no sample"); }
+      sampleFn = fn;
+      return fn.limits().catch(function(){ return null; });
+    }).then(function(lim){
+      canImages = !!(lim && lim.images);
+      if(!canImages){
+        sampleFn = null;
+        readBtn.disabled = true;
+        statusEl.className = "hint warn";
+        statusEl.textContent = "This view cannot send photographs to Claude, so only the example reading is available.";
+      }
+    }).catch(function(){
+      sampleFn = null;
+      readBtn.disabled = true;
+      statusEl.className = "hint warn";
+      statusEl.textContent = "Live readings are unavailable here — open this page in Claude to have a photo read. The example reading below shows the full output.";
+    });
+  } else {
+    readBtn.disabled = true;
+    statusEl.className = "hint warn";
+    statusEl.textContent = "Live readings are unavailable here — open this page in Claude to have a photo read. The example reading below shows the full output.";
+  }
+})();
+</script>
