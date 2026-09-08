@@ -28,6 +28,17 @@ The reading covers the parts of the practice that a single photograph can actual
 Output is a qi score, a verdict, per-gua findings, and cures ordered by leverage and tagged
 by element and effort (quick / weekend / project).
 
+Two things follow the cures:
+
+- **Swap It Out** — where a piece is wrong in itself rather than merely badly placed (wrong
+  scale, hard corners aimed at a body, a headboard with no backing, shelving above a head),
+  the reading names what to buy instead, by the qualities that matter — height, corner
+  profile, open vs closed, paired vs single — never by brand.
+- **If Nothing Can Move** — the last resort for a rental, a shared room, or built-in
+  furniture: clear the air instead. A real space-clearing protocol, with an honest note that
+  white sage smudging is a Native American ceremonial practice rather than a Chinese one, and
+  that feng shui's own kit is incense, bells, salt and an open window.
+
 ## How it works
 
 The page asks the viewer's own Claude account to read the photo, via the artifact `sample`

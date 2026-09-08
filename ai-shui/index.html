@@ -234,6 +234,41 @@
   .cure .effort{font-family:var(--mono); font-size:.6rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3)}
   .cure p{color:var(--ink-2); font-size:.86rem; margin-top:3px}
 
+  /* swaps */
+  .swaps{display:grid}
+  .swap{padding:14px 16px; border-bottom:1px solid var(--rule-soft); display:grid; gap:9px}
+  .swap:last-child{border-bottom:0}
+  .swap .pair{display:grid; grid-template-columns:1fr auto 1fr; gap:13px; align-items:center}
+  .swap .side{display:grid; gap:3px}
+  .swap .side .tag{font-family:var(--mono); font-size:.58rem; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3)}
+  .swap .out{color:var(--ink-2)}
+  .swap .out .thing{text-decoration:line-through; text-decoration-color:var(--fire); text-decoration-thickness:1px}
+  .swap .in .thing{font-weight:600}
+  .swap .swap-arrow{font-family:var(--mono); color:var(--ink-3); font-size:1.1rem}
+  .swap .why{font-size:.86rem; color:var(--ink-2); padding-left:0}
+  .swap .why b{font-family:var(--display); font-weight:600}
+  @media (max-width:620px){
+    .swap .pair{grid-template-columns:1fr}
+    .swap .swap-arrow{transform:rotate(90deg); justify-self:start}
+  }
+
+  /* last resort */
+  .resort{border-color:var(--fire)}
+  .resort .panel-head{border-bottom-color:var(--rule-soft)}
+  .resort .panel-head h2{color:var(--fire)}
+  .resort .body{padding:16px}
+  .resort .lede{color:var(--ink-2); margin-bottom:14px}
+  .resort ol{margin:0; padding-left:1.15rem; display:grid; gap:9px; color:var(--ink-2); font-size:.88rem}
+  .resort ol li::marker{font-family:var(--mono); font-size:.78rem; color:var(--fire)}
+  .resort ol li b{color:var(--ink); font-weight:600}
+  .resort .aside{
+    margin-top:16px; padding:12px 14px; border-left:2px solid var(--metal); background:var(--paper);
+    font-size:.84rem; color:var(--ink-2);
+  }
+  .resort .aside .eyebrow{display:block; color:var(--metal); margin-bottom:4px}
+  .resort .kicker{margin-top:14px; font-family:var(--display); font-size:1rem; color:var(--ink)}
+  .ember{display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--fire); vertical-align:middle; animation:ember 1.9s ease-in-out infinite}
+
   /* thinking */
   .thinking{padding:26px 16px; display:grid; gap:12px; justify-items:center; text-align:center}
   .incense{width:2px; height:44px; background:linear-gradient(180deg,transparent,var(--ink-3)); position:relative}
@@ -454,6 +489,13 @@
       {source:"Door-to-window alignment", detail:"Door, foot of bed and window sit on one straight line. Qi travels it like a corridor and takes rest with it."},
       {source:"Open shelving above the desk", detail:"Downward-pointing shelf edges over a seated head create low-grade pressure. Doors or baskets resolve it."}
     ],
+    swaps:[
+      {piece:"The sharp-cornered wardrobe", problem:"A hard 90° edge aimed at the pillow, and it is too tall for the wall it stands on.", replaceWith:"A lower wardrobe with rounded or chamfered corners — or a fabric-fronted one.", why:"Curves shed qi instead of firing it. Under chest height also stops the piece looming over the bed.", element:"wood"},
+      {piece:"The single nightstand", problem:"Kun reads singles literally; one nightstand and one lamp describe one person.", replaceWith:"A matched pair, round-topped, one on each side.", why:"Round tops keep the sharpest edges out of the sleeping zone, and the pair is the actual cure.", element:"earth"},
+      {piece:"The wall-facing desk", problem:"Puts your back to the door and jams the knowledge gua against a blank surface.", replaceWith:"A smaller desk that fits sideways to the window, with a solid-backed chair.", why:"Trading depth for orientation is almost always the better buy — the commanding position matters more than the worktop.", element:"metal"},
+      {piece:"Open shelving above the desk", problem:"Downward shelf edges press on a seated head.", replaceWith:"A closed cabinet, or nothing at all above head height.", why:"Overhead pressure is the one problem you cannot decorate your way out of.", element:"earth"}
+    ],
+    lastResort:"Almost everything here is movable, so you are not in last-resort territory — but the wardrobe is built into the alcove and will not be going anywhere.",
     cures:[
       {title:"Move the bed out of the door line", element:"earth", effort:"weekend", detail:"Shift the bed to the far-left wall so the doorway is visible diagonally and no longer aimed at your feet. This one move fixes the commanding position, the sha chi from the wardrobe, and the door-window corridor at once."},
       {title:"Clear the wealth corner and replace the dead plant", element:"wood", effort:"quick", detail:"Remove the dead trailing plant and the laundry pile. Replace with one healthy upward-growing plant — jade, money tree — in a purple or gold pot."},
@@ -632,6 +674,21 @@
       html += '</div></section>';
     }
 
+    if(d.swaps && d.swaps.length){
+      html += '<section class="panel"><div class="panel-head"><h2>Swap It Out</h2>'+
+              '<span class="eyebrow">換 Replacements</span></div><div class="swaps">';
+      d.swaps.forEach(function(w){
+        var el = ELEMENT[w.element] ? w.element : "earth";
+        html += '<div class="swap"><div class="pair">'+
+          '<div class="side out"><span class="tag">In the room now</span><span class="thing">'+esc(w.piece)+'</span></div>'+
+          '<span class="swap-arrow" aria-hidden="true">&rarr;</span>'+
+          '<div class="side in"><span class="tag" style="color:var(--'+el+')">Buy instead &middot; '+ELEMENT[el].cn+'</span>'+
+          '<span class="thing">'+esc(w.replaceWith)+'</span></div></div>'+
+          '<p class="why"><b>Why:</b> '+esc(w.problem)+' '+esc(w.why)+'</p></div>';
+      });
+      html += '</div></section>';
+    }
+
     if(d.cures && d.cures.length){
       html += '<section class="panel"><div class="panel-head"><h2>Cures</h2>'+
               '<span class="eyebrow">化解 In priority order</span></div><div class="cures">';
@@ -643,6 +700,26 @@
       });
       html += '</div></section>';
     }
+
+    html += '<section class="panel resort"><div class="panel-head">'+
+      '<h2><span class="ember" aria-hidden="true"></span> If Nothing Can Move</h2>'+
+      '<span class="eyebrow">最後手段 Last resort</span></div><div class="body">'+
+      '<p class="lede">'+esc(d.lastResort || "Rented, shared, built-in, or simply nailed down? Then stop rearranging and clear the air instead. It is the one cure that needs no permission from a landlord.")+'</p>'+
+      '<ol>'+
+        '<li><b>Open a window on the far side of the room first.</b> Stale qi needs an exit. Smoke in a sealed room is just smoke.</li>'+
+        '<li><b>Light the bundle, let it flame, then blow it out.</b> You want the ember and the thread of smoke, not a torch.</li>'+
+        '<li><b>Start at the door and work clockwise around the perimeter.</b> The direction matters more than the speed.</li>'+
+        '<li><b>Give the corners three times as long as the walls.</b> Corners are where qi pools and stops moving — they are the whole point of doing this.</li>'+
+        '<li><b>Trace the door frame, and anything with a mirror or a screen in it.</b> Thresholds and reflections both hold what passes through them.</li>'+
+        '<li><b>Finish back at the door.</b> Put the ember out in sand or dry salt, never water — you will want to relight it.</li>'+
+        '<li><b>Leave every window open for ten minutes.</b> This is the step people skip, and it is the step that does the work.</li>'+
+      '</ol>'+
+      '<div class="aside"><span class="eyebrow">One honest note</span>'+
+        'Smudging with white sage is a Native American ceremonial practice, not a Chinese one — and white sage is badly over-harvested. '+
+        'Feng shui has its own space-clearing kit: sandalwood or juniper incense, a bell or singing bowl struck nine times in each corner, '+
+        'a bowl of coarse salt left overnight, or camphor. Any of them will do this job without borrowing someone else&rsquo;s ceremony.</div>'+
+      '<p class="kicker">None of this moves the wardrobe. It does move the air &mdash; which is the part of qi you can reach without asking anyone.</p>'+
+      '</div></section>';
 
     if(!isSample){
       html += '<div class="btn-row" style="grid-template-columns:1fr"><button class="btn ghost" type="button" id="saveBtn">Save this reading</button></div>';
@@ -704,6 +781,8 @@
       "10. Five-element (wu xing) balance via colours, materials and shapes, read through the productive and controlling cycles.",
       "11. Yin/yang balance appropriate to this room's function.",
       "12. Each of the nine guas above: what physically occupies that ninth of the frame.",
+      "13. REPLACEMENTS. Where a piece of furniture is wrong in itself and not merely badly placed — wrong scale for the wall, hard corners aimed at a body, a headboard that gives no backing, shelving above a head, a piece that is broken or dead — name what to buy instead. Be specific about the qualities that matter (height, corner profile, open vs closed, solid back, paired vs single), not about brands. Only include a piece where rearranging genuinely will not fix it.",
+      "14. LAST RESORT. Judge honestly whether this occupant can act at all: a rental, a shared room, built-in or immovable furniture, no budget. Say in one or two sentences what is actually left to them if the answer is no.",
       "",
       "Reply with ONLY a JSON object of exactly this shape:",
       '{"room":"one sentence naming what is in the photo and the layout",',
@@ -714,6 +793,8 @@
       '"guas":{"career":{"score":0-100,"present":"what occupies this ninth","note":"one or two sentences"}, ... all nine keys: career, knowledge, family, wealth, fame, love, children, helpful, health},',
       '"checks":[{"name":"...","verdict":"good|caution|poor|unknown","detail":"one or two sentences"} x 6-9],',
       '"sha":[{"source":"...","detail":"..."} x 0-4],',
+      '"swaps":[{"piece":"the item in the room now","problem":"why it fights the room","replaceWith":"the specific piece to buy instead","why":"one sentence on what the replacement fixes","element":"wood|fire|earth|metal|water"} x 0-4],',
+      '"lastResort":"one or two sentences: if this occupant can move and buy nothing, what is genuinely left",',
       '"cures":[{"title":"imperative, specific","element":"wood|fire|earth|metal|water","detail":"1-2 sentences, concrete and doable","effort":"quick|weekend|project"} x 4-7, most impactful first]}',
       "",
       "Use the vocabulary of the practice (qi, sha qi, the guas by name, the wu xing cycles) but keep every recommendation physical and actionable. No preamble, no markdown fence."
@@ -785,6 +866,14 @@
     L.push("CHECKS");
     (d.checks||[]).forEach(function(c){ L.push("  [" + String(c.verdict).toUpperCase() + "] " + c.name + " — " + c.detail); });
     if((d.sha||[]).length){ L.push(""); L.push("SHA QI"); (d.sha||[]).forEach(function(s){ L.push("  " + s.source + " — " + s.detail); }); }
+    if((d.swaps||[]).length){
+      L.push(""); L.push("REPLACE");
+      (d.swaps||[]).forEach(function(w){
+        L.push("  " + w.piece + "  ->  " + w.replaceWith);
+        L.push("     " + w.problem + " " + w.why);
+      });
+    }
+    if(d.lastResort){ L.push(""); L.push("IF NOTHING CAN MOVE"); L.push("  " + d.lastResort); }
     L.push(""); L.push("CURES");
     (d.cures||[]).forEach(function(c,i){ L.push("  " + (i+1) + ". [" + c.element + " / " + c.effort + "] " + c.title); L.push("     " + c.detail); });
     var text = L.join("\n");
