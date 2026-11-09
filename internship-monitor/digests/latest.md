@@ -1,15 +1,9 @@
-# Internship monitor digest — 2026-11-02
+# Internship monitor digest — 2026-11-09
 
-Checked **25** companies, scanned **187** live postings, found **1** new matching internship(s).
+Checked **25** companies, scanned **195** live postings, found **0** new matching internship(s).
 
 ## New matching postings
-### Fervo Energy — Legal Intern
-- **Action:** tailor resume
-- **Location:** Houston, TX / Houston
-- **Apply:** https://job-boards.greenhouse.io/fervoenergy/jobs/4464038009
-- **Fit (rule-based):** Legal Intern — Houston, TX / Houston. Matched on: intern, internship, data, research.
-- **Next:** Run the tailored-resume pipeline on this posting: `/tailored-resume-pipeline <posting URL>` (ATS match analysis -> honest tailored resume).
-
+_No new matches this run._
 ## Manual check needed (no usable live feed)
 These companies have no supported ATS feed; check their careers pages by hand:
 - **Amazon (sustainability / energy)** (Bay Area, tier B) — https://www.amazon.jobs/en/search?base_query=sustainability%20intern
