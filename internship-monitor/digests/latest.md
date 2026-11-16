@@ -1,6 +1,6 @@
-# Internship monitor digest — 2026-11-09
+# Internship monitor digest — 2026-11-16
 
-Checked **25** companies, scanned **195** live postings, found **0** new matching internship(s).
+Checked **25** companies, scanned **191** live postings, found **0** new matching internship(s).
 
 ## New matching postings
 _No new matches this run._
